@@ -1,0 +1,1690 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(const BankPassbookOCRApp());
+}
+
+class BankPassbookOCRApp extends StatelessWidget {
+  const BankPassbookOCRApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Bank Passbook OCR - Advanced',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const BankOCRScreen(),
+    );
+  }
+}
+
+class BankOCRScreen extends StatefulWidget {
+  const BankOCRScreen({super.key});
+
+  @override
+  State<BankOCRScreen> createState() => _BankOCRScreenState();
+}
+
+class _BankOCRScreenState extends State<BankOCRScreen> {
+  String _status = 'Ready to capture passbook';
+  XFile? _capturedImage;
+  String _extractedText = '';
+  bool _isProcessing = false;
+  final ImagePicker _picker = ImagePicker();
+
+  // Enhanced bank data fields
+  String _bankName = 'Not detected';
+  String _accountHolderName = 'Not detected';
+  String _accountNumber = 'Not detected';
+  String _ifscCode = 'Not detected';
+  String _branchAddress = 'Not detected';
+  String _branchName = 'Not detected';
+  String _micrCode = 'Not detected';
+  String _accountType = 'Not detected';
+
+  // Enhanced bank patterns database
+  final Map<String, List<String>> _bankPatterns = {
+    'State Bank of India': [
+      'state bank of india',
+      'sbi',
+      'state bank',
+      'sbi bank',
+      's.b.i',
+      'state bank india',
+    ],
+    'Punjab National Bank': [
+      'punjab national bank',
+      'pnb',
+      'punjab national',
+      'p.n.b',
+      'pnb bank',
+    ],
+    'HDFC Bank': ['hdfc bank', 'hdfc', 'h.d.f.c', 'hdfc bank ltd', 'hdfc ltd'],
+    'ICICI Bank': [
+      'icici bank',
+      'icici',
+      'i.c.i.c.i',
+      'icici bank ltd',
+      'icici ltd',
+    ],
+    'Axis Bank': ['axis bank', 'axis', 'axis bank ltd', 'axis ltd'],
+    'Canara Bank': ['canara bank', 'canara', 'canara bank ltd'],
+    'Union Bank of India': [
+      'union bank',
+      'union bank of india',
+      'union bank india',
+    ],
+    'Bank of Baroda': ['bank of baroda', 'bob', 'bank baroda', 'b.o.b'],
+    'Bank of India': ['bank of india', 'boi', 'bank india', 'b.o.i'],
+    'Indian Bank': ['indian bank', 'indianbank'],
+    'Indian Overseas Bank': [
+      'indian overseas bank',
+      'iob',
+      'indian overseas',
+      'i.o.b',
+    ],
+    'Central Bank of India': [
+      'central bank of india',
+      'central bank',
+      'central bank india',
+    ],
+    'Bank of Maharashtra': ['bank of maharashtra', 'bank maharashtra'],
+    'Kotak Mahindra Bank': [
+      'kotak mahindra',
+      'kotak bank',
+      'kotak',
+      'kotak mahindra bank',
+    ],
+    'Yes Bank': ['yes bank', 'yesbank', 'yes bank ltd'],
+    'IDBI Bank': ['idbi bank', 'idbi', 'i.d.b.i', 'idbi bank ltd'],
+  };
+
+  // Enhanced IFSC code patterns for major banks
+  final Map<String, RegExp> _ifscPatterns = {
+    'SBI': RegExp(r'SBI[DN][0-9A-Z]{7}'),
+    'HDFC': RegExp(r'HDFC[CDN][0-9A-Z]{7}'),
+    'ICICI': RegExp(r'ICIC[DN][0-9A-Z]{7}'),
+    'AXIS': RegExp(r'UTIB[DN][0-9A-Z]{7}'),
+    'PNB': RegExp(r'PUNB[DN][0-9A-Z]{7}'),
+    'BOB': RegExp(r'BARB[DN][0-9A-Z]{7}'),
+    'CANARA': RegExp(r'CNRB[DN][0-9A-Z]{7}'),
+    'UNION': RegExp(r'UBIN[DN][0-9A-Z]{7}'),
+    'BOI': RegExp(r'BKID[DN][0-9A-Z]{7}'),
+    'INDIAN': RegExp(r'IDIB[DN][0-9A-Z]{7}'),
+  };
+
+  Future<void> _captureImage() async {
+    try {
+      setState(() {
+        _isProcessing = true;
+        _status = '🔍 Checking camera permission...';
+      });
+
+      final status = await Permission.camera.request();
+
+      if (status.isGranted) {
+        setState(() {
+          _status = '📷 Opening camera for high-quality capture...';
+        });
+
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          preferredCameraDevice: CameraDevice.rear,
+          maxWidth: 2048,
+          maxHeight: 2048,
+          imageQuality: 98,
+        );
+
+        if (image != null) {
+          await _processSelectedImage(image);
+        } else {
+          setState(() {
+            _status = '❌ Camera cancelled';
+            _isProcessing = false;
+          });
+        }
+      } else {
+        setState(() {
+          _status = '❌ Camera permission denied';
+          _isProcessing = false;
+        });
+        _showPermissionDialog('Camera');
+      }
+    } catch (e) {
+      setState(() {
+        _status = '❌ Camera Error: $e';
+        _isProcessing = false;
+      });
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      setState(() {
+        _isProcessing = true;
+        _status = '🖼️ Opening gallery...';
+      });
+
+      // Try to pick image directly first (works on newer Android versions)
+      final XFile? image = await _picker
+          .pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 2048,
+            maxHeight: 2048,
+            imageQuality: 98,
+          )
+          .catchError((error) async {
+            // If direct pick fails, try requesting permission
+            print('⚠️ Direct gallery access failed: $error');
+
+            // Try photos permission (Android 13+)
+            PermissionStatus? photoStatus;
+            try {
+              photoStatus = await Permission.photos.request();
+            } catch (e) {
+              print('⚠️ Photos permission not available: $e');
+            }
+
+            // Try storage permission (older Android)
+            PermissionStatus? storageStatus;
+            try {
+              storageStatus = await Permission.storage.request();
+            } catch (e) {
+              print('⚠️ Storage permission not available: $e');
+            }
+
+            // Try again after permission request
+            if ((photoStatus?.isGranted ?? false) ||
+                (storageStatus?.isGranted ?? false) ||
+                (photoStatus == null && storageStatus == null)) {
+              return await _picker.pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 2048,
+                maxHeight: 2048,
+                imageQuality: 98,
+              );
+            } else {
+              throw Exception('Permission denied');
+            }
+          });
+
+      if (image != null) {
+        await _processSelectedImage(image);
+      } else {
+        setState(() {
+          _status = '❌ Gallery selection cancelled';
+          _isProcessing = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _status = '❌ Gallery Error: $e';
+        _isProcessing = false;
+      });
+      _showPermissionDialog('Gallery');
+    }
+  }
+
+  void _showPermissionDialog(String permission) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Permission Required'),
+        content: Text(
+          '$permission permission is required to use this feature.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processSelectedImage(XFile image) async {
+    setState(() {
+      _capturedImage = image;
+      _status = '🔄 Starting advanced deep scan...';
+      _isProcessing = true;
+      _extractedText = '';
+
+      // Reset all bank data
+      _bankName = 'Not detected';
+      _accountHolderName = 'Not detected';
+      _accountNumber = 'Not detected';
+      _ifscCode = 'Not detected';
+      _branchAddress = 'Not detected';
+      _branchName = 'Not detected';
+      _micrCode = 'Not detected';
+      _accountType = 'Not detected';
+    });
+
+    await _processImageWithEnhancedOCR(image);
+  }
+
+  Future<void> _processImageWithEnhancedOCR(XFile image) async {
+    try {
+      final inputImage = InputImage.fromFilePath(image.path);
+
+      // Use multiple OCR strategies
+      final textRecognizerLatin = TextRecognizer(
+        script: TextRecognitionScript.latin,
+      );
+
+      final textRecognizerDevanagiri = TextRecognizer(
+        script: TextRecognitionScript.devanagiri,
+      );
+
+      String extractedText = '';
+
+      // Strategy 1: Latin script
+      try {
+        final RecognizedText latinText = await textRecognizerLatin.processImage(
+          inputImage,
+        );
+        extractedText = latinText.text;
+        print('🔤 LATIN SCRIPT: ${latinText.text.length} chars');
+      } catch (e) {
+        print('⚠️ Latin OCR failed: $e');
+      }
+
+      // Strategy 2: Devanagiri script (for Indian languages)
+      if (extractedText.isEmpty || extractedText.length < 100) {
+        try {
+          final RecognizedText devanagiriText = await textRecognizerDevanagiri
+              .processImage(inputImage);
+          if (devanagiriText.text.length > extractedText.length) {
+            extractedText = devanagiriText.text;
+            print('🔤 DEVANAGIRI SCRIPT: ${devanagiriText.text.length} chars');
+          }
+        } catch (e) {
+          print('⚠️ Devanagiri OCR failed: $e');
+        }
+      }
+
+      await textRecognizerLatin.close();
+      await textRecognizerDevanagiri.close();
+
+      setState(() {
+        _extractedText = extractedText;
+      });
+
+      // Print raw text for debugging
+      print('📝 RAW TEXT (${extractedText.length} chars):\n$extractedText\n');
+
+      if (extractedText.isEmpty) {
+        setState(() {
+          _status = '❌ No text detected. Please try with better image quality.';
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      // Enhanced data extraction
+      await _enhancedDeepScanBankData(extractedText);
+    } catch (e, stackTrace) {
+      print('❌ OCR Processing Error: $e');
+      print('Stack trace: $stackTrace');
+      setState(() {
+        String errorMessage = '❌ OCR Processing Error';
+        if (e.toString().contains('radix')) {
+          errorMessage = '❌ Data parsing error. Please try with a clearer image.';
+        } else if (e.toString().contains('FormatException')) {
+          errorMessage = '❌ Format error. Please ensure the image is clear.';
+        } else {
+          errorMessage = '❌ Error: ${e.toString()}';
+        }
+        _status = errorMessage;
+        _isProcessing = false;
+      });
+    }
+  }
+
+  Future<void> _enhancedDeepScanBankData(String text) async {
+    final lines = text.split('\n');
+    final cleanText = text.replaceAll('\n', ' ').toLowerCase();
+
+    print('🚀 STARTING ENHANCED DEEP SCAN...');
+    print('📊 Total lines: ${lines.length}');
+    print('📊 Total characters: ${text.length}');
+
+    // Enhanced extraction with multiple strategies
+    _bankName = _extractBankNameEnhanced(lines, cleanText);
+    _accountHolderName = _extractAccountHolderNameEnhanced(lines, text);
+    _accountNumber = _extractAccountNumberEnhanced(lines, text);
+    _ifscCode = _extractIFSCCodeEnhanced(lines, text);
+    _branchAddress = _extractBranchAddressEnhanced(lines, text);
+    _branchName = _extractBranchNameEnhanced(lines, text);
+    _micrCode = _extractMICRCodeEnhanced(lines, text);
+    _accountType = _extractAccountTypeEnhanced(lines, text);
+
+    setState(() {
+      _status = '✅ Advanced deep scan completed!';
+      _isProcessing = false;
+    });
+
+    // Print comprehensive results
+    _printEnhancedStructuredData();
+  }
+
+  String _extractBankNameEnhanced(List<String> lines, String cleanText) {
+    print('🏦 ENHANCED BANK NAME SCAN...');
+
+    // Strategy 1: Direct pattern matching
+    for (String line in lines) {
+      String lowerLine = line.toLowerCase();
+      for (var entry in _bankPatterns.entries) {
+        for (String pattern in entry.value) {
+          if (lowerLine.contains(pattern)) {
+            print('✅ BANK DETECTED: ${entry.key} with pattern: $pattern');
+            return entry.key;
+          }
+        }
+      }
+    }
+
+    // Strategy 2: IFSC-based bank detection
+    String ifscBank = _detectBankFromIFSC(cleanText);
+    if (ifscBank != 'Not detected') {
+      return ifscBank;
+    }
+
+    // Strategy 3: Keyword density analysis
+    Map<String, int> bankScores = {};
+    for (var entry in _bankPatterns.entries) {
+      int score = 0;
+      for (String pattern in entry.value) {
+        if (cleanText.contains(pattern)) {
+          score += pattern.length;
+        }
+      }
+      if (score > 0) {
+        bankScores[entry.key] = score;
+      }
+    }
+
+    if (bankScores.isNotEmpty) {
+      String bestMatch = bankScores.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+      print('✅ BANK BY SCORE: $bestMatch');
+      return bestMatch;
+    }
+
+    return 'Not detected';
+  }
+
+  String _detectBankFromIFSC(String text) {
+    String upperText = text.toUpperCase();
+
+    for (var entry in _ifscPatterns.entries) {
+      if (entry.value.hasMatch(upperText)) {
+        String bankName = _getBankNameFromCode(entry.key);
+        print('✅ BANK FROM IFSC PATTERN: $bankName');
+        return bankName;
+      }
+    }
+
+    return 'Not detected';
+  }
+
+  String _getBankNameFromCode(String code) {
+    Map<String, String> codeToBank = {
+      'SBI': 'State Bank of India',
+      'HDFC': 'HDFC Bank',
+      'ICICI': 'ICICI Bank',
+      'AXIS': 'Axis Bank',
+      'PNB': 'Punjab National Bank',
+      'BOB': 'Bank of Baroda',
+      'CANARA': 'Canara Bank',
+      'UNION': 'Union Bank of India',
+      'BOI': 'Bank of India',
+      'INDIAN': 'Indian Bank',
+    };
+    return codeToBank[code] ?? 'Not detected';
+  }
+
+  String _extractAccountHolderNameEnhanced(
+    List<String> lines,
+    String fullText,
+  ) {
+    print('👤 ENHANCED ACCOUNT HOLDER NAME SCAN...');
+
+    List<String> namePatterns = [
+      'name:',
+      'account holder:',
+      'holder name:',
+      'account name:',
+      'customer name:',
+      'client name:',
+      'beneficiary name:',
+      'applicant name:',
+      'account holder name:',
+      'name of account holder:',
+      'account holder\'s name:',
+      'name of the account holder:',
+      'account holder name',
+      'customer name',
+      'client name',
+      'beneficiary',
+      'holder\'s name',
+      'name of holder',
+    ];
+
+    // Multiple extraction strategies
+    List<String> potentialNames = [];
+
+    // Strategy 1: Pattern-based extraction with context
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase().trim();
+
+      for (String pattern in namePatterns) {
+        if (line.contains(pattern)) {
+          print('✅ FOUND NAME PATTERN: "$pattern" in line: "$line"');
+
+          // Extract from current line
+          String name = _extractNameAfterPatternEnhanced(lines[i], pattern);
+          if (_isValidEnhancedIndianName(name)) {
+            potentialNames.add(name);
+          }
+
+          // Check next 3 lines
+          for (int j = 1; j <= 3; j++) {
+            if (i + j < lines.length) {
+              String nextLine = lines[i + j].trim();
+              if (_isValidEnhancedIndianName(nextLine) &&
+                  !_containsBankTermsEnhanced(nextLine)) {
+                potentialNames.add(_formatNameEnhanced(nextLine));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 2: Position-based (usually at top of document)
+    for (int i = 0; i < min(8, lines.length); i++) {
+      String line = lines[i].trim();
+      if (_isValidEnhancedIndianName(line) &&
+          !_containsBankTermsEnhanced(line)) {
+        potentialNames.add(_formatNameEnhanced(line));
+      }
+    }
+
+    // Strategy 3: Length and format based
+    for (String line in lines) {
+      String cleanLine = line.trim();
+      if (cleanLine.length >= 4 && cleanLine.length <= 50) {
+        if (_isValidEnhancedIndianName(cleanLine) &&
+            !_containsBankTermsEnhanced(cleanLine) &&
+            !_containsNumbers(cleanLine)) {
+          potentialNames.add(_formatNameEnhanced(cleanLine));
+        }
+      }
+    }
+
+    // Return the best candidate
+    if (potentialNames.isNotEmpty) {
+      String bestName = potentialNames.first;
+      print('✅ BEST ACCOUNT HOLDER NAME: $bestName');
+      return bestName;
+    }
+
+    return 'Not detected';
+  }
+
+  String _extractNameAfterPatternEnhanced(String line, String pattern) {
+    // Enhanced pattern removal and extraction
+    String remaining = line
+        .replaceAll(RegExp(pattern, caseSensitive: false), '')
+        .trim();
+
+    // Remove common separators and extract clean name
+    List<String> parts = remaining.split(RegExp(r'[:,\-–—•\t]'));
+    for (String part in parts) {
+      String trimmed = part.trim();
+      if (_isValidEnhancedIndianName(trimmed) &&
+          !_containsBankTermsEnhanced(trimmed)) {
+        return _formatNameEnhanced(trimmed);
+      }
+    }
+
+    return 'Not detected';
+  }
+
+  bool _isValidEnhancedIndianName(String text) {
+    if (text.isEmpty || text.length < 4) return false;
+
+    // Clean the text
+    String cleanText = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    // Should not contain numbers or most special characters
+    if (RegExp(r'[0-9@#$%^&*()_+={}\[\]|\\:;"<>,?/~]').hasMatch(cleanText)) {
+      return false;
+    }
+
+    // Should contain only letters, spaces, dots (for initials), and apostrophes
+    if (!RegExp(r'^[A-Za-z\s.\x27-]+$').hasMatch(cleanText)) {
+      return false;
+    }
+
+    List<String> words = cleanText.split(' ');
+    if (words.length < 2 || words.length > 5) return false;
+
+    // Each word should be valid
+    for (String word in words) {
+      if (word.length < 2 && !word.endsWith('.')) return false;
+      if (word.contains(RegExp(r'[0-9]'))) return false;
+    }
+
+    return true;
+  }
+
+  bool _containsBankTermsEnhanced(String text) {
+    List<String> bankTerms = [
+      'bank',
+      'account',
+      'branch',
+      'ifsc',
+      'micr',
+      'balance',
+      'savings',
+      'current',
+      'deposit',
+      'withdrawal',
+      'transaction',
+      'date',
+      'amount',
+      'debit',
+      'credit',
+      'interest',
+      'overdraft',
+      'cheque',
+      'passbook',
+      'statement',
+      'loan',
+      'overdraft',
+      'no.',
+      'number',
+      'code',
+      'branch',
+      'address',
+      'city',
+      'state',
+      'pincode',
+      'zip',
+      'mobile',
+      'phone',
+      'email',
+      'customer',
+      'client',
+      'id',
+      'identification',
+    ];
+
+    String lowerText = text.toLowerCase();
+    return bankTerms.any((term) => lowerText.contains(term));
+  }
+
+  bool _containsNumbers(String text) {
+    return RegExp(r'\d').hasMatch(text);
+  }
+
+  String _formatNameEnhanced(String name) {
+    return name
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return '';
+          if (word.endsWith('.') && word.length == 2) {
+            return word.toUpperCase(); // Handle initials like "A."
+          }
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ')
+        .trim();
+  }
+
+  String _extractAccountNumberEnhanced(List<String> lines, String fullText) {
+    print('🔢 ENHANCED ACCOUNT NUMBER SCAN...');
+
+    List<String> accountLabels = [
+      'account no',
+      'account number',
+      'acc no',
+      'acc number',
+      'a/c no',
+      'a/c number',
+      'account',
+      'savings account',
+      'current account',
+      'account no:',
+      'account number:',
+      'acc no:',
+      'a/c no:',
+      'account no.',
+      'account number.',
+      'acc no.',
+      'a/c no.',
+      'a/c',
+      'ac no',
+      'ac number',
+      'account #',
+      'acc #',
+      'a/c #',
+    ];
+
+    List<String> potentialAccounts = [];
+
+    // Strategy 1: Label-based extraction with context
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase().trim();
+
+      for (String label in accountLabels) {
+        if (line.contains(label)) {
+          print('✅ FOUND ACCOUNT LABEL: "$label" in line: "$line"');
+
+          // Extract from current line
+          String account = _extractAccountFromTextEnhanced(line, label);
+          if (_isValidEnhancedAccountNumber(account)) {
+            potentialAccounts.add(account);
+          }
+
+          // Check surrounding lines
+          for (int j = -1; j <= 3; j++) {
+            if (i + j >= 0 && i + j < lines.length && j != 0) {
+              String nearbyLine = lines[i + j].trim();
+              String accountFromNearby = _extractPureAccountNumberEnhanced(
+                nearbyLine,
+              );
+              if (_isValidEnhancedAccountNumber(accountFromNearby)) {
+                potentialAccounts.add(accountFromNearby);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 2: Advanced pattern matching
+    RegExp accountRegex = RegExp(r'\b\d{9,18}\b');
+    Iterable<RegExpMatch> matches = accountRegex.allMatches(fullText);
+    for (RegExpMatch match in matches) {
+      String account = match.group(0)!;
+      if (_isValidEnhancedAccountNumber(account)) {
+        potentialAccounts.add(account);
+      }
+    }
+
+    // Strategy 3: Look for numbers near account-related terms
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase();
+      if (line.contains('account') ||
+          line.contains('a/c') ||
+          line.contains('acc')) {
+        for (int j = max(0, i - 2); j <= min(lines.length - 1, i + 2); j++) {
+          String nearbyLine = lines[j];
+          String account = _extractPureAccountNumberEnhanced(nearbyLine);
+          if (_isValidEnhancedAccountNumber(account)) {
+            potentialAccounts.add(account);
+          }
+        }
+      }
+    }
+
+    // Return the most likely account number
+    if (potentialAccounts.isNotEmpty) {
+      // Prefer longer numbers (more complete)
+      potentialAccounts.sort((a, b) => b.length.compareTo(a.length));
+      String bestAccount = potentialAccounts.first;
+      print('✅ BEST ACCOUNT NUMBER: $bestAccount');
+      return bestAccount;
+    }
+
+    return 'Not detected';
+  }
+
+  String _extractAccountFromTextEnhanced(String text, String label) {
+    String remaining = text.replaceAll(label, '').trim();
+    return _extractPureAccountNumberEnhanced(remaining);
+  }
+
+  String _extractPureAccountNumberEnhanced(String text) {
+    // Remove all non-digit characters but preserve the original for context
+    String cleanText = text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Check for valid account number length
+    if (cleanText.length >= 9 && cleanText.length <= 18) {
+      if (_isValidEnhancedAccountNumber(cleanText)) {
+        return cleanText;
+      }
+    }
+
+    return 'Not detected';
+  }
+
+  bool _isValidEnhancedAccountNumber(String account) {
+    if (account.length < 9 || account.length > 18) return false;
+
+    // Should not be all same digits
+    if (account.split('').every((char) => char == account[0])) {
+      return false;
+    }
+
+    // Should not be sequential
+    if (_isSequentialNumberEnhanced(account)) {
+      return false;
+    }
+
+    // Should have reasonable digit variation
+    Set<String> uniqueDigits = account.split('').toSet();
+    if (uniqueDigits.length < 4) {
+      return false;
+    }
+
+    // Common fake number patterns
+    if (account.startsWith('0000') || account.endsWith('0000')) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _isSequentialNumberEnhanced(String text) {
+    if (text.isEmpty || text.length < 2) return false;
+    
+    bool ascending = true;
+    bool descending = true;
+
+    for (int i = 1; i < text.length; i++) {
+      // Check if both characters are digits before parsing
+      if (!RegExp(r'^\d$').hasMatch(text[i]) || 
+          !RegExp(r'^\d$').hasMatch(text[i - 1])) {
+        return false; // Not a valid number sequence
+      }
+      
+      try {
+        int current = int.parse(text[i]);
+        int previous = int.parse(text[i - 1]);
+
+        if (current != previous + 1) ascending = false;
+        if (current != previous - 1) descending = false;
+        if (!ascending && !descending) break;
+      } catch (e) {
+        // If parsing fails, it's not sequential
+        return false;
+      }
+    }
+
+    return ascending || descending;
+  }
+
+  String _extractIFSCCodeEnhanced(List<String> lines, String fullText) {
+    print('🏛️ ENHANCED IFSC CODE SCAN...');
+    print('📝 Full text length: ${fullText.length}');
+
+    List<String> ifscLabels = [
+      'ifsc',
+      'ifsc code',
+      'ifsc:',
+      'ifsc code:',
+      'code',
+      'bank code',
+      'micr',
+      'micr code',
+      'ifsc no',
+      'ifsc number',
+      'ifs code',
+      'ifscode',
+      'ifc code',
+      'if s c',
+      'ifs',
+    ];
+
+    List<String> potentialIFSCs = [];
+    String upperText = fullText.toUpperCase();
+
+    // Strategy 1: Direct pattern matching in full text (most reliable)
+    // IFSC format: 4 letters + 0 + 6 alphanumeric
+    RegExp ifscRegex = RegExp(r'\b[A-Z]{4}0[A-Z0-9]{6}\b');
+    Iterable<RegExpMatch> matches = ifscRegex.allMatches(upperText);
+    for (RegExpMatch match in matches) {
+      String ifsc = match.group(0)!;
+      if (_isValidEnhancedIFSC(ifsc)) {
+        print('✅ FOUND IFSC BY PATTERN: $ifsc');
+        potentialIFSCs.add(ifsc);
+      }
+    }
+
+    // Strategy 2: Label-based extraction with context
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase().trim();
+
+      for (String label in ifscLabels) {
+        if (line.contains(label)) {
+          print('✅ FOUND IFSC LABEL: "$label" in line: "$line"');
+
+          // Extract from current line
+          String ifsc = _extractIFSCFromTextEnhanced(
+            lines[i].toUpperCase(),
+            label,
+          );
+          if (_isValidEnhancedIFSC(ifsc)) {
+            potentialIFSCs.add(ifsc);
+          }
+
+          // Check surrounding lines (expanded range)
+          for (int j = -2; j <= 3; j++) {
+            if (i + j >= 0 && i + j < lines.length && j != 0) {
+              String nearbyLine = lines[i + j].trim().toUpperCase();
+              String ifscFromNearby = _extractPureIFSCCodeEnhanced(nearbyLine);
+              if (_isValidEnhancedIFSC(ifscFromNearby)) {
+                potentialIFSCs.add(ifscFromNearby);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 3: Bank-specific IFSC patterns
+    for (var entry in _ifscPatterns.entries) {
+      RegExp pattern = entry.value;
+      if (pattern.hasMatch(upperText)) {
+        Iterable<RegExpMatch> patternMatches = pattern.allMatches(upperText);
+        for (RegExpMatch match in patternMatches) {
+          String ifsc = match.group(0)!;
+          if (_isValidEnhancedIFSC(ifsc)) {
+            print('✅ FOUND IFSC BY BANK PATTERN: $ifsc');
+            potentialIFSCs.add(ifsc);
+          }
+        }
+      }
+    }
+
+    // Strategy 4: Look for patterns with spaces or special characters removed
+    String cleanedText = upperText.replaceAll(RegExp(r'[\s\-_\.]'), '');
+    RegExp cleanedIfscRegex = RegExp(r'[A-Z]{4}0[A-Z0-9]{6}');
+    Iterable<RegExpMatch> cleanedMatches = cleanedIfscRegex.allMatches(
+      cleanedText,
+    );
+    for (RegExpMatch match in cleanedMatches) {
+      String ifsc = match.group(0)!;
+      if (_isValidEnhancedIFSC(ifsc)) {
+        print('✅ FOUND IFSC IN CLEANED TEXT: $ifsc');
+        potentialIFSCs.add(ifsc);
+      }
+    }
+
+    // Remove duplicates and return the most likely IFSC code
+    potentialIFSCs = potentialIFSCs.toSet().toList();
+
+    if (potentialIFSCs.isNotEmpty) {
+      // Prefer IFSC codes that appear near IFSC labels
+      String bestIFSC = potentialIFSCs.first;
+      print(
+        '✅ BEST IFSC CODE: $bestIFSC (from ${potentialIFSCs.length} candidates)',
+      );
+      return bestIFSC;
+    }
+
+    print('❌ NO IFSC CODE FOUND');
+    return 'Not detected';
+  }
+
+  String _extractIFSCFromTextEnhanced(String text, String label) {
+    String remaining = text.replaceAll(label.toUpperCase(), '').trim();
+    return _extractPureIFSCCodeEnhanced(remaining);
+  }
+
+  String _extractPureIFSCCodeEnhanced(String text) {
+    // Try multiple patterns to handle OCR errors
+    // Pattern 1: Standard IFSC format
+    RegExp ifscRegex1 = RegExp(r'\b[A-Z]{4}0[A-Z0-9]{6}\b');
+    Match? match = ifscRegex1.firstMatch(text);
+
+    if (match != null) {
+      String ifsc = match.group(0)!;
+      if (_isValidEnhancedIFSC(ifsc)) {
+        return ifsc;
+      }
+    }
+
+    // Pattern 2: Without word boundaries (in case of OCR errors)
+    RegExp ifscRegex2 = RegExp(r'[A-Z]{4}0[A-Z0-9]{6}');
+    match = ifscRegex2.firstMatch(text);
+
+    if (match != null) {
+      String ifsc = match.group(0)!;
+      if (_isValidEnhancedIFSC(ifsc)) {
+        return ifsc;
+      }
+    }
+
+    // Pattern 3: Handle common OCR errors (O instead of 0, I instead of 1, etc.)
+    String cleanedText = text
+        .replaceAll('O', '0')
+        .replaceAll('I', '1')
+        .replaceAll('S', '5')
+        .replaceAll('Z', '2');
+    match = ifscRegex2.firstMatch(cleanedText);
+
+    if (match != null) {
+      String ifsc = match.group(0)!;
+      // Restore original format but validate
+      if (_isValidEnhancedIFSC(ifsc)) {
+        return ifsc;
+      }
+    }
+
+    return 'Not detected';
+  }
+
+  bool _isValidEnhancedIFSC(String code) {
+    if (code.length != 11) return false;
+
+    // First 4 characters should be letters (bank code)
+    String firstFour = code.substring(0, 4);
+    if (!RegExp(r'^[A-Z]{4}$').hasMatch(firstFour)) {
+      // Try with common OCR error corrections
+      firstFour = firstFour
+          .replaceAll('0', 'O')
+          .replaceAll('1', 'I')
+          .replaceAll('5', 'S');
+      if (!RegExp(r'^[A-Z]{4}$').hasMatch(firstFour)) {
+        return false;
+      }
+    }
+
+    // Fifth character should be '0' (but allow 'O' as OCR error)
+    String fifthChar = code[4];
+    if (fifthChar != '0' && fifthChar != 'O') return false;
+
+    // Last 6 characters should be alphanumeric
+    String lastSix = code.substring(5);
+    if (!RegExp(r'^[A-Z0-9]{6}$').hasMatch(lastSix)) {
+      // Try with common OCR error corrections
+      lastSix = lastSix
+          .replaceAll('O', '0')
+          .replaceAll('I', '1')
+          .replaceAll('S', '5')
+          .replaceAll('Z', '2');
+      if (!RegExp(r'^[A-Z0-9]{6}$').hasMatch(lastSix)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  String _extractBranchAddressEnhanced(List<String> lines, String fullText) {
+    print('📍 ENHANCED BRANCH ADDRESS SCAN...');
+
+    List<String> addressPatterns = [
+      'branch',
+      'address',
+      'location',
+      'branch:',
+      'address:',
+      'branch name',
+      'branch address',
+      'branch code',
+      'office',
+      'branch office',
+      'corporate office',
+      'head office',
+      'registered office',
+      'location:',
+      'city:',
+      'district:',
+      'state:',
+      'pincode:',
+      'zip:',
+      'postal code:',
+    ];
+
+    List<String> potentialAddresses = [];
+
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase().trim();
+
+      for (String pattern in addressPatterns) {
+        if (line.contains(pattern)) {
+          print('✅ FOUND ADDRESS PATTERN: "$pattern" in line: "$line"');
+
+          // Extract address from context
+          String address = _extractAddressFromContextEnhanced(
+            lines,
+            i,
+            pattern,
+          );
+          if (address != 'Not detected' && address.length > 10) {
+            potentialAddresses.add(address);
+          }
+        }
+      }
+    }
+
+    // Look for address-like patterns (contains street, road, nagar, etc.)
+    List<String> addressIndicators = [
+      'road',
+      'street',
+      'nagar',
+      'colony',
+      'sector',
+      'phase',
+      'building',
+      'floor',
+      'plot',
+      'house',
+      'main',
+      'cross',
+      'layout',
+      'extension',
+      'circle',
+      'market',
+      'center',
+    ];
+
+    for (String line in lines) {
+      String cleanLine = line.trim();
+      if (cleanLine.length > 15 && cleanLine.length < 100) {
+        int indicatorCount = addressIndicators
+            .where((indicator) => cleanLine.toLowerCase().contains(indicator))
+            .length;
+        if (indicatorCount > 0 && !_containsBankTermsEnhanced(cleanLine)) {
+          potentialAddresses.add(cleanLine);
+        }
+      }
+    }
+
+    if (potentialAddresses.isNotEmpty) {
+      // Return the longest address (most complete)
+      potentialAddresses.sort((a, b) => b.length.compareTo(a.length));
+      return potentialAddresses.first;
+    }
+
+    return 'Not detected';
+  }
+
+  String _extractAddressFromContextEnhanced(
+    List<String> lines,
+    int index,
+    String pattern,
+  ) {
+    String currentLine = lines[index].trim();
+
+    // Remove the pattern and check remaining text
+    String remaining = currentLine
+        .replaceAll(RegExp(pattern, caseSensitive: false), '')
+        .trim();
+    if (remaining.length > 10 &&
+        !_containsOnlySpecialCharsEnhanced(remaining)) {
+      return remaining;
+    }
+
+    // Build address from multiple lines
+    StringBuffer addressBuffer = StringBuffer();
+    int linesAdded = 0;
+
+    // Check previous line
+    if (index > 0) {
+      String prevLine = lines[index - 1].trim();
+      if (prevLine.length > 5 && !_containsBankTermsEnhanced(prevLine)) {
+        addressBuffer.write(prevLine);
+        linesAdded++;
+      }
+    }
+
+    // Add current line (without pattern)
+    if (remaining.isNotEmpty) {
+      if (linesAdded > 0) addressBuffer.write(', ');
+      addressBuffer.write(remaining);
+      linesAdded++;
+    }
+
+    // Check next 3 lines
+    for (int i = 1; i <= 3; i++) {
+      if (index + i < lines.length) {
+        String nextLine = lines[index + i].trim();
+        if (nextLine.length > 5 &&
+            !_containsBankTermsEnhanced(nextLine) &&
+            !_containsOnlySpecialCharsEnhanced(nextLine)) {
+          if (linesAdded > 0) addressBuffer.write(', ');
+          addressBuffer.write(nextLine);
+          linesAdded++;
+        }
+      }
+    }
+
+    String fullAddress = addressBuffer.toString().trim();
+    return fullAddress.isNotEmpty ? fullAddress : 'Not detected';
+  }
+
+  String _extractBranchNameEnhanced(List<String> lines, String fullText) {
+    // Similar to address extraction but focused on branch names
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i].toLowerCase().trim();
+      if (line.contains('branch') && !line.contains('address')) {
+        String branchName = line
+            .replaceAll('branch', '')
+            .replaceAll(':', '')
+            .trim();
+        if (branchName.length > 3) {
+          return _formatNameEnhanced(branchName);
+        }
+      }
+    }
+    return 'Not detected';
+  }
+
+  String _extractMICRCodeEnhanced(List<String> lines, String fullText) {
+    RegExp micrRegex = RegExp(r'\b\d{9}\b');
+    Iterable<RegExpMatch> matches = micrRegex.allMatches(fullText);
+    for (RegExpMatch match in matches) {
+      String micr = match.group(0)!;
+      if (_isValidMICR(micr)) {
+        return micr;
+      }
+    }
+    return 'Not detected';
+  }
+
+  bool _isValidMICR(String code) {
+    return code.length == 9 && !_isSequentialNumberEnhanced(code);
+  }
+
+  String _extractAccountTypeEnhanced(List<String> lines, String fullText) {
+    String lowerText = fullText.toLowerCase();
+    if (lowerText.contains('savings') || lowerText.contains('saving')) {
+      return 'Savings Account';
+    } else if (lowerText.contains('current') ||
+        lowerText.contains('checking')) {
+      return 'Current Account';
+    } else if (lowerText.contains('salary')) {
+      return 'Salary Account';
+    } else if (lowerText.contains('fixed') || lowerText.contains('fd')) {
+      return 'Fixed Deposit';
+    } else if (lowerText.contains('recurring') || lowerText.contains('rd')) {
+      return 'Recurring Deposit';
+    }
+    return 'Not detected';
+  }
+
+  bool _containsOnlySpecialCharsEnhanced(String text) {
+    return text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').isEmpty;
+  }
+
+  void _printEnhancedStructuredData() {
+    final bankData = {
+      'bank_name': _bankName,
+      'account_holder_name': _accountHolderName,
+      'account_number': _accountNumber,
+      'ifsc_code': _ifscCode,
+      'branch_address': _branchAddress,
+      'branch_name': _branchName,
+      'micr_code': _micrCode,
+      'account_type': _accountType,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    print('''
+🎯 ENHANCED DEEP SCAN RESULTS:
+══════════════════════════════════════════════
+🏦 BANK NAME: $_bankName
+👤 ACCOUNT HOLDER: $_accountHolderName
+🔢 ACCOUNT NUMBER: $_accountNumber
+🏛️ IFSC CODE: $_ifscCode
+📍 BRANCH ADDRESS: $_branchAddress
+🏢 BRANCH NAME: $_branchName
+📄 MICR CODE: $_micrCode
+💳 ACCOUNT TYPE: $_accountType
+⏰ TIMESTAMP: ${DateTime.now()}
+══════════════════════════════════════════════
+
+📤 JSON FOR API:
+${jsonEncode(bankData, toEncodable: (object) => object.toString())}
+''');
+  }
+
+  // Enhanced UI with better visual feedback
+  Widget _buildImagePreview() {
+    if (_capturedImage == null) {
+      return Container(
+        width: double.infinity,
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.photo_camera, size: 52, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              'No image selected',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Use high-quality, well-lit images for best results',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          height: 220,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: FutureBuilder<Uint8List>(
+              future: _capturedImage!.readAsBytes(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 48),
+                      );
+                    },
+                  );
+                }
+                return Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _capturedImage!.name,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBankDataCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.analytics, color: Colors.blue[700], size: 24),
+                const SizedBox(width: 12),
+                const Text(
+                  'Advanced Scan Results',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildEnhancedDataRow('🏦 Bank Name', _bankName),
+            _buildEnhancedDataRow('👤 Account Holder', _accountHolderName),
+            _buildEnhancedDataRow('🔢 Account Number', _accountNumber),
+            _buildEnhancedDataRow('🏛️ IFSC Code', _ifscCode),
+            _buildEnhancedDataRow('📍 Branch Address', _branchAddress),
+            if (_branchName != 'Not detected')
+              _buildEnhancedDataRow('🏢 Branch Name', _branchName),
+            if (_micrCode != 'Not detected')
+              _buildEnhancedDataRow('📄 MICR Code', _micrCode),
+            if (_accountType != 'Not detected')
+              _buildEnhancedDataRow('💳 Account Type', _accountType),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedDataRow(String label, String value) {
+    bool isDetected = value != 'Not detected';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDetected ? Colors.green[50] : Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDetected ? Colors.green[100]! : Colors.grey[300]!,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDetected ? Colors.green[800] : Colors.red[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bank Passbook OCR - Advanced'),
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+        elevation: 4,
+        actions: [
+          if (_capturedImage != null)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isProcessing
+                  ? null
+                  : () {
+                      setState(() {
+                        _capturedImage = null;
+                        _extractedText = '';
+                        _status = 'Ready to capture passbook';
+                        _bankName = 'Not detected';
+                        _accountHolderName = 'Not detected';
+                        _accountNumber = 'Not detected';
+                        _ifscCode = 'Not detected';
+                        _branchAddress = 'Not detected';
+                        _branchName = 'Not detected';
+                        _micrCode = 'Not detected';
+                        _accountType = 'Not detected';
+                      });
+                    },
+              tooltip: 'Clear and Start Over',
+            ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.enhanced_encryption,
+                        size: 64,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Advanced Bank Passbook Scanner',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Multi-strategy OCR with enhanced data extraction',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              _buildImagePreview(),
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('High-Quality Camera'),
+                      onPressed: _isProcessing ? null : _captureImage,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.blue[700],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.photo_library_rounded),
+                      label: const Text('Select from Gallery'),
+                      onPressed: _isProcessing ? null : _pickImageFromGallery,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.green[600],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Scan Status',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _isProcessing
+                              ? Colors.blue[50]
+                              : (_status.contains('✅')
+                                    ? Colors.green[50]
+                                    : (_status.contains('❌')
+                                          ? Colors.red[50]
+                                          : Colors.grey[50])),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _isProcessing
+                                ? Colors.blue[100]!
+                                : (_status.contains('✅')
+                                      ? Colors.green[100]!
+                                      : (_status.contains('❌')
+                                            ? Colors.red[100]!
+                                            : Colors.grey[300]!)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            if (_isProcessing)
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.blue[700],
+                                ),
+                              )
+                            else if (_status.contains('✅'))
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green[600],
+                                size: 20,
+                              )
+                            else if (_status.contains('❌'))
+                              Icon(
+                                Icons.error,
+                                color: Colors.red[600],
+                                size: 20,
+                              )
+                            else
+                              Icon(
+                                Icons.info,
+                                color: Colors.blue[600],
+                                size: 20,
+                              ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _status,
+                                style: TextStyle(
+                                  color: _isProcessing
+                                      ? Colors.blue[800]
+                                      : (_status.contains('✅')
+                                            ? Colors.green[800]
+                                            : (_status.contains('❌')
+                                                  ? Colors.red[800]
+                                                  : Colors.grey[800])),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              if (_bankName != 'Not detected' ||
+                  _accountNumber != 'Not detected')
+                _buildBankDataCard(),
+
+              const SizedBox(height: 20),
+              if (_capturedImage != null && !_isProcessing)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tips for Better Results:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTipItem('📸 Use good lighting without shadows'),
+                        _buildTipItem(
+                          '🔍 Ensure the passbook is flat and focused',
+                        ),
+                        _buildTipItem('📄 Capture the entire passbook page'),
+                        _buildTipItem('🎯 Avoid glare and reflections'),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: Colors.grey[700], fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

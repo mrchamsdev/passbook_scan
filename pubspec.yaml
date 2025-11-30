@@ -39,6 +39,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.15.0
   http: ^1.2.0
   animated_text_kit: ^4.3.0
+  pin_code_fields: ^8.0.1
 
 dev_dependencies:
   flutter_test:

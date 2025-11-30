@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
+import 'auth/welcome_screen.dart';
+import 'utils/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,16 +11,25 @@ class BankPassbookOCRApp extends StatelessWidget {
   const BankPassbookOCRApp({super.key});
 
   @override
+
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NeoScan - Bank Passbook OCR',
+      title: 'Bank Passbook OCR',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: AppTheme.primaryBlue,
+        scaffoldBackgroundColor: AppTheme.backgroundColor,
         useMaterial3: true,
         fontFamily: 'Inter',
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppTheme.primaryBlue,
+          primary: AppTheme.primaryBlue,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: AppTheme.primaryButtonStyle,
+        ),
       ),
-      home: const SplashScreen(), // Changed to SplashScreen
+      home: const WelcomeScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

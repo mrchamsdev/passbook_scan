@@ -39,11 +39,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               // Illustration
-              Expanded(
-                child: Center(
-                  child: _buildIllustration(),
-                ),
-              ),
+              Expanded(child: Center(child: _buildIllustration())),
               // Pagination dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -231,4 +227,3 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 }
-

@@ -1,7 +1,10 @@
+import 'package:bank_scan/services/network_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_theme.dart';
 import 'sign_in_screen.dart';
+import 'password_changed_screen.dart';
 
 enum CompanyType { individual, company }
 
@@ -17,8 +20,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _panNumberController = TextEditingController();
   final _gstNumberController = TextEditingController();
@@ -27,8 +28,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _ifscCodeController = TextEditingController();
 
   CompanyType _selectedCompanyType = CompanyType.individual;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
 
   @override
@@ -36,8 +35,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _companyNameController.dispose();
     _panNumberController.dispose();
     _gstNumberController.dispose();
@@ -47,7 +44,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() {
+  void _handleSignUp() async {
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -58,21 +55,150 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    if (_formKey.currentState!.validate()) {
-      // Handle sign up logic here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: AppTheme.primaryBlue,
-        ),
-      );
-      // Navigate to sign in screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SignInScreen(),
-        ),
-      );
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      var signUPURL = '${dotenv.env['API_URL']}users';
+      print('Sign Up URL: $signUPURL');
+
+      var payload = {
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+        'companyType': _selectedCompanyType.toString().split('.').last,
+        'companyName': _companyNameController.text,
+        'panNumber': _panNumberController.text,
+        'gstNumber': _gstNumberController.text,
+        'bankName': _bankNameController.text,
+        'bankAccount': _bankAccountController.text,
+        'ifscCode': _ifscCodeController.text,
+      };
+
+      print('Sign Up Payload: $payload');
+
+      var response = await ServiceWithDataPost(signUPURL, payload).data();
+
+      print('Sign Up Response: $response');
+
+      if (mounted) {
+        // Check response format: [statusCode, responseBody]
+        if (response is List && response.length >= 2) {
+          int statusCode = response[0];
+          dynamic responseBody = response[1];
+
+          // Check if request was successful (200 or 201)
+          if (statusCode >= 200 && statusCode < 300) {
+            // Success - navigate to password screen with email and name
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PasswordChangedScreen(
+                  email: _emailController.text.trim(),
+                  name: _nameController.text.trim(),
+                ),
+              ),
+            );
+          } else {
+            // Error - extract and display user-friendly message
+            String errorMessage = 'Something went wrong. Please try again.';
+
+            if (responseBody is Map) {
+              // Try to extract message from response
+              if (responseBody.containsKey('message')) {
+                errorMessage = responseBody['message'].toString();
+              } else if (responseBody.containsKey('error')) {
+                errorMessage = responseBody['error'].toString();
+              } else if (responseBody.containsKey('errors')) {
+                // Handle multiple errors
+                var errors = responseBody['errors'];
+                if (errors is Map) {
+                  errorMessage = errors.values.first.toString();
+                } else if (errors is List && errors.isNotEmpty) {
+                  errorMessage = errors.first.toString();
+                }
+              }
+            }
+
+            // Display user-friendly error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        errorMessage,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          }
+        } else {
+          // Unexpected response format
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Unexpected response from server. Please try again.',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.all(16),
+              duration: Duration(seconds: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Network error. Please check your connection and try again.',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -102,26 +228,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     if (value.length < 10) {
       return 'Please enter a valid phone number';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your password';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
-    }
-    if (value != _passwordController.text) {
-      return 'Passwords do not match';
     }
     return null;
   }
@@ -198,16 +304,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
               children: [
                 const SizedBox(height: 20),
                 // Title
-                const Text(
-                  'Create an account',
-                  style: AppTheme.headingLarge,
-                ),
+                const Text('Create an account', style: AppTheme.headingLarge),
                 const SizedBox(height: 8),
                 // Subtitle
-                const Text(
-                  'Welcome To The App',
-                  style: AppTheme.bodyLarge,
-                ),
+                const Text('Welcome To The App', style: AppTheme.bodyLarge),
                 const SizedBox(height: 32),
                 // Name Field
                 _buildLabel('Name'),
@@ -239,52 +339,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(10),
                   ],
-                  decoration: AppTheme.inputDecoration('Enter your phone number here'),
+                  decoration: AppTheme.inputDecoration(
+                    'Enter your phone number here',
+                  ),
                   validator: _validatePhone,
-                ),
-                const SizedBox(height: 20),
-                // Password Field
-                _buildLabel('Password'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: AppTheme.inputDecoration('Enter your password here').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: AppTheme.textHint,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: _validatePassword,
-                ),
-                const SizedBox(height: 20),
-                // Confirm Password Field
-                _buildLabel('Confirm Password'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: AppTheme.inputDecoration('Enter your password here').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                        color: AppTheme.textHint,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: _validateConfirmPassword,
                 ),
                 const SizedBox(height: 24),
                 // Company Type Selection
@@ -311,14 +369,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 24),
                 // Conditional Fields based on Company Type
-                if (_selectedCompanyType == CompanyType.individual || _selectedCompanyType == CompanyType.company) ...[
+                if (_selectedCompanyType == CompanyType.individual ||
+                    _selectedCompanyType == CompanyType.company) ...[
                   // Company Name
                   _buildLabel('Company Name'),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _companyNameController,
-                    decoration: AppTheme.inputDecoration('Enter your company name here'),
-                    validator: (value) => _validateRequired(value, 'company name'),
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your company name here',
+                    ),
+                    validator: (value) =>
+                        _validateRequired(value, 'company name'),
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 20),
@@ -328,10 +390,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _panNumberController,
                     textCapitalization: TextCapitalization.characters,
-                    inputFormatters: [
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    decoration: AppTheme.inputDecoration('Enter your PAN Number here'),
+                    inputFormatters: [LengthLimitingTextInputFormatter(10)],
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your PAN Number here',
+                    ),
                     validator: _validatePAN,
                   ),
                   const SizedBox(height: 20),
@@ -341,10 +403,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _gstNumberController,
                     textCapitalization: TextCapitalization.characters,
-                    inputFormatters: [
-                      LengthLimitingTextInputFormatter(15),
-                    ],
-                    decoration: AppTheme.inputDecoration('Enter your GST Number here'),
+                    inputFormatters: [LengthLimitingTextInputFormatter(15)],
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your GST Number here',
+                    ),
                     validator: _validateGST,
                   ),
                 ],
@@ -356,7 +418,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _bankNameController,
-                    decoration: AppTheme.inputDecoration('Enter your bank name here'),
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your bank name here',
+                    ),
                     validator: (value) => _validateRequired(value, 'bank name'),
                     textCapitalization: TextCapitalization.words,
                   ),
@@ -371,7 +435,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(18),
                     ],
-                    decoration: AppTheme.inputDecoration('Enter your bank account number here'),
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your bank account number here',
+                    ),
                     validator: _validateAccountNumber,
                   ),
                   const SizedBox(height: 20),
@@ -381,10 +447,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _ifscCodeController,
                     textCapitalization: TextCapitalization.characters,
-                    inputFormatters: [
-                      LengthLimitingTextInputFormatter(11),
-                    ],
-                    decoration: AppTheme.inputDecoration('Enter your IFSC Code here'),
+                    inputFormatters: [LengthLimitingTextInputFormatter(11)],
+                    decoration: AppTheme.inputDecoration(
+                      'Enter your IFSC Code here',
+                    ),
                     validator: _validateIFSC,
                   ),
                 ],
@@ -424,10 +490,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: ElevatedButton(
                     onPressed: _handleSignUp,
                     style: AppTheme.primaryButtonStyle,
-                    child: const Text(
-                      'SIGN-UP NOW',
-                      style: AppTheme.buttonText,
-                    ),
+                    child: const Text('Next', style: AppTheme.buttonText),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -452,7 +515,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         'SIGN IN',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.primaryBlue,
+                          color: AppTheme.lightBlue,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -473,13 +536,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       label,
       style: const TextStyle(
         fontSize: 14,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w800,
         color: AppTheme.textPrimary,
       ),
     );
   }
 
-  Widget _buildCompanyTypeButton(CompanyType type, String label, IconData icon) {
+  Widget _buildCompanyTypeButton(
+    CompanyType type,
+    String label,
+    IconData icon,
+  ) {
     final isSelected = _selectedCompanyType == type;
     return GestureDetector(
       onTap: () {
@@ -520,4 +587,3 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
-

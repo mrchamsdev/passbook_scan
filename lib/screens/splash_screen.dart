@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:bank_scan/screens/main_navigation.dart';
 import 'package:flutter/material.dart';
-import 'bank_ocr_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const BankOCRScreen(),
+              const MainNavigation(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             const begin = Offset(1.0, 0.0);
             const end = Offset.zero;

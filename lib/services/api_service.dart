@@ -1,20 +1,29 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/bank_data.dart';
+import 'network_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://dev.zaanvar.com/api/scan/';
-  static const String storageUrl = 'https://dev.zaanvar.com/api/scan/data';
+  static String get baseUrl => dotenv.env['API_URL'] ?? '';
+
+  static String get storageUrl => dotenv.env['API_URL'] ?? '';
+
+  // Get API timeout from environment variables, default to 30 seconds
+  static int get apiTimeout =>
+      int.tryParse(dotenv.env['API_TIMEOUT'] ?? '30') ?? 30;
 
   static Future<Map<String, dynamic>> uploadImage(File imageFile) async {
     try {
       print('🔄 [IMAGE UPLOAD] Starting image upload process...');
       print('📁 [IMAGE INFO] File path: ${imageFile.path}');
       print('📁 [IMAGE INFO] File size: ${await imageFile.length()} bytes');
-      print('🌐 [API CALL] Making POST request to: $baseUrl');
 
-      var request = http.MultipartRequest('POST', Uri.parse(baseUrl));
+      var scanURL = '${dotenv.env['API_URL']}scan';
+      print('🌐 [API CALL] Making POST request to: $scanURL');
+
+      var request = http.MultipartRequest('POST', Uri.parse(scanURL));
 
       var imageBytes = await imageFile.readAsBytes();
       print('📊 [IMAGE DATA] Image bytes length: ${imageBytes.length}');
@@ -36,6 +45,7 @@ class ApiService {
       print('📥 [RESPONSE] Received response from server');
       print('📊 [RESPONSE] Status Code: ${response.statusCode}');
       print('📄 [RESPONSE] Headers: ${response.headers}');
+      print('📝 [RESPONSE] Body: ${response.body}');
       print('📝 [RESPONSE] Body length: ${response.body.length} characters');
 
       if (response.statusCode == 200) {
@@ -65,7 +75,23 @@ class ApiService {
       } else {
         print('❌ [API ERROR] Status Code: ${response.statusCode}');
         print('❌ [API ERROR] Response Body: ${response.body}');
-        throw Exception('API Error: ${response.statusCode} - ${response.body}');
+
+        // Try to parse error message
+        String errorMessage = 'API Error: ${response.statusCode}';
+        try {
+          var errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          } else {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          errorMessage = response.body;
+        }
+
+        throw Exception('API Error: ${response.statusCode} - $errorMessage');
       }
     } catch (e) {
       print('💥 [UPLOAD FAILED] Exception: $e');
@@ -78,50 +104,99 @@ class ApiService {
 
   static Future<bool> storeBankData(BankData bankData) async {
     try {
-      print('\n💾 [DATA STORAGE] Starting bank data storage process...');
-      print('📋 [DATA TO STORE] Bank data details:');
-      print('   👤 Customer Name: "${bankData.accountHolderName}"');
-      print('   🔢 Account Number: "${bankData.accountNumber}"');
-      print('   🏛️ IFSC Code: "${bankData.ifscCode}"');
-      print('   🏢 Branch Name: "${bankData.branchName}"');
-      print('   📍 Branch Address: "${bankData.branchAddress}"');
+      var paymentURL = '${dotenv.env['API_URL']}bank/payment';
+      print('Payment URL: $paymentURL');
 
-      print('🌐 [API CALL] Making POST request to: $storageUrl');
+      var payload = {
+        'accountNumber': bankData.accountNumber,
+        'ifscCode': bankData.ifscCode,
+        'customerName': bankData.accountHolderName,
+        'bankName': bankData.branchName,
+      };
 
-      final requestBody = bankData.toJson();
-      print('📦 [REQUEST BODY] JSON payload: ${jsonEncode(requestBody)}');
+      print('Payment Payload: $payload');
 
-      final response = await http.post(
-        Uri.parse(storageUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
+      var response = await ServiceWithDataPost(paymentURL, payload).data();
+
+      print('Payment Response: $response');
+
+      // Check response format: [statusCode, responseBody]
+      if (response is List && response.length >= 2) {
+        int statusCode = response[0];
+        return statusCode >= 200 && statusCode < 300;
+      }
+
+      return false;
+    } catch (e) {
+      print('💥 [STORAGE FAILED] Exception occurred: $e');
+      throw Exception('Storage failed: $e');
+    }
+  }
+
+  static Future<bool> addPayment({
+    required String accountNumber,
+    required String ifscCode,
+    required String customerName,
+    required String bankName,
+    required String amountToPay,
+    required File photo,
+    String? nickname,
+    String? phoneNumber,
+    String? comments,
+    String? bankInfoId,
+  }) async {
+    try {
+      var paymentURL = '${dotenv.env['API_URL']}bank/payment';
+      print('Payment URL: $paymentURL');
+
+      var request = http.MultipartRequest('POST', Uri.parse(paymentURL));
+
+      // Add text fields
+      request.fields['accountNumber'] = accountNumber;
+      request.fields['ifscCode'] = ifscCode;
+      request.fields['customerName'] = customerName;
+      request.fields['bankName'] = bankName;
+      request.fields['amountToPay'] = amountToPay;
+
+      if (nickname != null && nickname.isNotEmpty) {
+        request.fields['nickname'] = nickname;
+      }
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        request.fields['phoneNumber'] = phoneNumber;
+      }
+      if (comments != null && comments.isNotEmpty) {
+        request.fields['comments'] = comments;
+      }
+      if (bankInfoId != null && bankInfoId.isNotEmpty) {
+        request.fields['bankInfoId'] = bankInfoId;
+      }
+
+      // Add photo file
+      var imageBytes = await photo.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'photo',
+          imageBytes,
+          filename: 'payment_photo.jpg',
+        ),
       );
 
-      print('📥 [STORAGE RESPONSE] Received response');
-      print('📊 [STORAGE RESPONSE] Status Code: ${response.statusCode}');
-      print('📄 [STORAGE RESPONSE] Headers: ${response.headers}');
-      print('📝 [STORAGE RESPONSE] Body: ${response.body}');
+      print('Payment Payload: ${request.fields}');
+      print('Photo file: ${photo.path}');
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print('Payment Response Status: ${response.statusCode}');
+      print('Payment Response Body: ${response.body}');
 
       final bool isSuccess =
           response.statusCode == 200 || response.statusCode == 201;
 
-      if (isSuccess) {
-        print('🎉 [STORAGE SUCCESS] Data stored successfully!');
-        print('✅ [STORAGE SUCCESS] Response: ${response.body}');
-      } else {
-        print(
-          '❌ [STORAGE FAILED] Server returned error status: ${response.statusCode}',
-        );
-        print('❌ [STORAGE FAILED] Error response: ${response.body}');
-      }
-
       return isSuccess;
     } catch (e) {
-      print('💥 [STORAGE FAILED] Exception occurred: $e');
-      print('🔄 [STORAGE FAILED] Stack trace: ${e.toString()}');
-      throw Exception('Storage failed: $e');
-    } finally {
-      print('🏁 [DATA STORAGE] Process completed\n');
+      print('💥 [PAYMENT FAILED] Exception occurred: $e');
+      throw Exception('Payment submission failed: $e');
     }
   }
 

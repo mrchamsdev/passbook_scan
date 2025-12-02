@@ -27,7 +27,10 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
       // Navigate to password changed screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const PasswordChangedScreen()),
+        MaterialPageRoute(
+          builder: (context) =>
+              const PasswordChangedScreen(email: '', name: ''),
+        ),
       );
     }
   }

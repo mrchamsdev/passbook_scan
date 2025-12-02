@@ -1,3 +1,4 @@
+import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'verify_code_screen.dart';
 import 'sign_up_screen.dart';
@@ -58,7 +59,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
+                    color: AppTheme.textPrimary,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -66,19 +67,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 // Subtitle
                 const Text(
                   'Enter your mobile number to get the OTP',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF666666),
-                  ),
+                  style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 40),
                 // Email Field
                 const Text(
-                  'Enter Email id',
+                  'Enter Email Id',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -100,7 +98,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue,
+                        width: 2,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -125,7 +126,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: ElevatedButton(
                     onPressed: _handleSend,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
+                      backgroundColor: AppTheme.primaryBlue,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -149,10 +150,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   children: [
                     const Text(
                       "Don't have an Account? ",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF666666),
-                      ),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
                     ),
                     TextButton(
                       onPressed: () {
@@ -183,4 +181,3 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
-

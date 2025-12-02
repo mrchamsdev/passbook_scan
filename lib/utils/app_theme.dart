@@ -1,15 +1,39 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Colors
-  static const Color primaryBlue = Color(0xFF1E3A8A);
-  static const Color lightBlue = Color(0xFF3B82F6);
+  // Primary Colors - Blue Theme
+  static const Color primaryBlue = Color(0xFF002E6E); // Main blue
+  static const Color primaryBlueDark = Color(
+    0xFF002E6E,
+  ); // Darker blue for headers
+  static const Color lightBlue = Color(0xFF00B9F1);
+  static const Color lightBlueAccent = Color(
+    0xFFDBEAFE,
+  ); // Light blue for cards/buttons
   static const Color backgroundColor = Colors.white;
+  static const Color scaffoldBackground = Color(0xFFF8F9FA);
+
+  // Text Colors
   static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF666666);
-  static const Color textHint = Color(0xFF9CA3AF);
+  static const Color textSecondary = Color(0xFFA2A2A2);
+  static const Color textHint = Color(0xFFA2A2A2);
+  static const Color textWhite = Colors.white;
+
+  // UI Colors
   static const Color borderColor = Color(0xFFE5E7EB);
   static const Color inputFillColor = Color(0xFFF9FAFB);
+  static const Color cardBackground = Colors.white;
+  static const Color dividerColor = Color(0xFFE5E7EB);
+  static const Color shadowColor = Color(0xFF1A1A1A);
+
+  // Status Colors
+  static const Color successColor = Color(0xFF10B981);
+  static const Color errorColor = Color(0xFFEF4444);
+  static const Color warningColor = Color(0xFFF59E0B);
+
+  // Navigation Colors
+  static const Color navSelected = primaryBlue;
+  static const Color navUnselected = Color(0xFFA2A2A2);
 
   // Text Styles
   static const TextStyle headingLarge = TextStyle(

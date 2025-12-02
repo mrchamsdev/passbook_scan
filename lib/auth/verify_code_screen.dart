@@ -1,3 +1,4 @@
+import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'set_password_screen.dart';
@@ -20,9 +21,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       // Navigate to set password screen
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const SetPasswordScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const SetPasswordScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,10 +77,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 // Subtitle
                 const Text(
                   'An authentication code has been sent to your Phone Number',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF666666),
-                  ),
+                  style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
                 ),
                 const SizedBox(height: 40),
                 // OTP Field Label
@@ -89,8 +85,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                   'Enter OTP',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -131,10 +127,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                   children: [
                     const Text(
                       "Didn't receive a code? ",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF666666),
-                      ),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
                     ),
                     TextButton(
                       onPressed: _handleResend,
@@ -171,7 +164,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                         ),
                         children: [
                           const TextSpan(
-                            text: 'If you cannot receive the code or if you changed phone number. ',
+                            text:
+                                'If you cannot receive the code or if you changed phone number. ',
                           ),
                           WidgetSpan(
                             child: GestureDetector(
@@ -227,4 +221,3 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     );
   }
 }
-

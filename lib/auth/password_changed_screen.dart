@@ -1,244 +1,415 @@
+import 'package:bank_scan/services/network_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../utils/app_theme.dart';
+import '../utils/custom_dialog.dart';
 import 'sign_in_screen.dart';
 
-class PasswordChangedScreen extends StatelessWidget {
-  const PasswordChangedScreen({super.key});
+class PasswordChangedScreen extends StatefulWidget {
+  final String email;
+  final String name;
+
+  const PasswordChangedScreen({
+    super.key,
+    required this.email,
+    required this.name,
+  });
+
+  @override
+  State<PasswordChangedScreen> createState() => _PasswordChangedScreenState();
+}
+
+class _PasswordChangedScreenState extends State<PasswordChangedScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _otpController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _agreeToTerms = false;
+  bool _isLoading = false;
+  bool _isResending = false;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _showSuccessDialog(String message) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.success,
+      title: 'Success!',
+      buttonText: 'OK',
+      barrierDismissible: false,
+      onButtonPressed: () {
+        Navigator.of(context).pop();
+        // Navigate to sign in screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SignInScreen(),
+          ),
+          (route) => false,
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message, {required bool showResend}) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.error,
+      title: 'Error!',
+    );
+  }
+
+  void _handleSetPassword() async {
+    if (!_agreeToTerms) {
+      _showErrorDialog('Please agree to terms & conditions', showResend: false);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      var setPasswordURL = '${dotenv.env['API_URL']}users/setPassword';
+      print('Set Password URL: $setPasswordURL');
+
+      var payload = {
+        'email': widget.email,
+        'temporaryPassword': _otpController.text,
+        'newPassword': _passwordController.text,
+      };
+
+      print('Set Password Payload: $payload');
+
+      var response = await ServiceWithDataPut(setPasswordURL, payload).data();
+
+      print('Set Password Response: $response');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Check response format: [statusCode, responseBody]
+        if (response is List && response.length >= 2) {
+          int statusCode = response[0];
+          dynamic responseBody = response[1];
+
+          // Check if request was successful (200 or 201)
+          if (statusCode >= 200 && statusCode < 300) {
+            // Success - show success dialog
+            String successMessage = 'Password updated successfully!';
+            
+            if (responseBody is Map && responseBody.containsKey('message')) {
+              successMessage = responseBody['message'].toString();
+            }
+            
+            _showSuccessDialog(successMessage);
+          } else {
+            // Error - extract and display user-friendly message in dialog
+            String errorMessage = 'Something went wrong. Please try again.';
+
+            if (responseBody is Map) {
+              // Try to extract message from response
+              if (responseBody.containsKey('message')) {
+                errorMessage = responseBody['message'].toString();
+              } else if (responseBody.containsKey('error')) {
+                errorMessage = responseBody['error'].toString();
+              } else if (responseBody.containsKey('errors')) {
+                // Handle multiple errors
+                var errors = responseBody['errors'];
+                if (errors is Map) {
+                  errorMessage = errors.values.first.toString();
+                } else if (errors is List && errors.isNotEmpty) {
+                  errorMessage = errors.first.toString();
+                }
+              }
+            }
+
+            // Display error in center popup dialog with resend option
+            _showErrorDialog(errorMessage, showResend: true);
+          }
+        } else {
+          // Unexpected response format
+          _showErrorDialog(
+            'Unexpected response from server. Please try again.',
+            showResend: true,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        _showErrorDialog(
+          'Network error. Please check your connection and try again.',
+          showResend: true,
+        );
+      }
+    }
+  }
+
+  String? _validateOTP(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter OTP';
+    }
+    if (value.length < 10) {
+      return 'OTP must be at least 10 characters';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your password';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              // Title
-              const Text(
-                'Password Changed',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
-                  letterSpacing: 0.5,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 20),
+                // Title
+                const Text(
+                  'Create your password',
+                  style: AppTheme.headingLarge,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              // Subtitle
-              const Text(
-                'Please login to your email account again',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF666666),
+                const SizedBox(height: 8),
+                // Subtitle
+                const Text(
+                  'Enter Valid OTP from your verified mail id',
+                  style: AppTheme.bodyLarge,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              // Illustration
-              Expanded(
-                child: Center(
-                  child: _buildIllustration(),
+                const SizedBox(height: 32),
+                // OTP Field
+                _buildLabel('OTP'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.text,
+                  // inputFormatters: [
+                  //   FilteringTextInputFormatter.allow(
+                  //     RegExp(r'[A-Za-z0-9*!@#$%^&()]'),
+                  //   ),
+                  // ],
+                  decoration: AppTheme.inputDecoration('X X X X X X'),
+                  // validator: _validateOTP,
+                  textCapitalization: TextCapitalization.none,
                 ),
-              ),
-              // Success Message
-              const Text(
-                'Password changed successfully!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              // Sign In Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignInScreen(),
+                const SizedBox(height: 20),
+                // Password Field
+                _buildLabel('Password'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration:
+                      AppTheme.inputDecoration(
+                        'Enter your password here',
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: AppTheme.textHint,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3A8A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  validator: _validatePassword,
+                ),
+                const SizedBox(height: 20),
+                // Confirm Password Field
+                _buildLabel('Confirm Password'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration:
+                      AppTheme.inputDecoration(
+                        'Enter your password here',
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: AppTheme.textHint,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                  validator: _validateConfirmPassword,
+                ),
+                const SizedBox(height: 24),
+                // Terms & Conditions
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _agreeToTerms,
+                      onChanged: (value) {
+                        setState(() {
+                          _agreeToTerms = value ?? false;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'SIGN-IN NOW',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _agreeToTerms = !_agreeToTerms;
+                          });
+                        },
+                        child: const Text(
+                          'I agree to all terms & conditions',
+                          style: AppTheme.bodyMedium,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                // Sign Up Button
+                GestureDetector(
+                  onTap: _isLoading ? null : _handleSetPassword,
+                  child: Container(
+                    width: double.infinity,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _isLoading
+                          ? Colors.grey.shade400
+                          : AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ), // responsive radius
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            'SIGN-UP NOW',
+                            style: AppTheme.buttonText.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 24),
+                // Sign In Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Already have an Account? ',
+                      style: AppTheme.bodyMedium,
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignInScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      child: const Text(
+                        'SIGN IN',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.lightBlue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildIllustration() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Background decorative elements
-        Positioned(
-          top: 20,
-          left: 40,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDBEAFE).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.lock,
-              color: Color(0xFF1E3A8A),
-              size: 30,
-            ),
-          ),
-        ),
-        Positioned(
-          top: 60,
-          right: 30,
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.security,
-              color: Color(0xFF1E3A8A),
-              size: 25,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 80,
-          left: 20,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDBEAFE).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.phone_android,
-              color: Color(0xFF1E3A8A),
-              size: 20,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 100,
-          right: 50,
-          child: Container(
-            width: 45,
-            height: 45,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.vpn_key,
-              color: Color(0xFF1E3A8A),
-              size: 22,
-            ),
-          ),
-        ),
-        // Main illustration - Person with success elements
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Main lock icon with checkmark
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E3A8A),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E3A8A).withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.check,
-                color: Colors.white,
-                size: 60,
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Person illustration
-            Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(90),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Body
-                  Positioned(
-                    bottom: 20,
-                    child: Container(
-                      width: 100,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A8A),
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                  ),
-                  // Head
-                  Positioned(
-                    top: 10,
-                    child: Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
+  Widget _buildLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: AppTheme.textPrimary,
+      ),
     );
   }
 }
-

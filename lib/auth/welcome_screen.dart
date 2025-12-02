@@ -1,9 +1,161 @@
+import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _imageAnimationController;
+  late AnimationController _textAnimationController;
+  late AnimationController _dotsAnimationController;
+  late AnimationController _buttonAnimationController;
+
+  late Animation<double> _imageFadeAnimation;
+  late Animation<Offset> _imageSlideAnimation;
+
+  late Animation<double> _titleFadeAnimation;
+  late Animation<Offset> _titleSlideAnimation;
+
+  late Animation<double> _descriptionFadeAnimation;
+  late Animation<Offset> _descriptionSlideAnimation;
+
+  late Animation<double> _dotsFadeAnimation;
+  late Animation<double> _dotsScaleAnimation;
+
+  late Animation<double> _buttonFadeAnimation;
+  late Animation<Offset> _buttonSlideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Image animation - slides from top
+    _imageAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _imageFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _imageAnimationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+
+    _imageSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, -0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _imageAnimationController,
+            curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+          ),
+        );
+
+    // Text animations - title and description
+    _textAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _titleFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _textAnimationController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+
+    _titleSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _textAnimationController,
+            curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+          ),
+        );
+
+    _descriptionFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _textAnimationController,
+        curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
+      ),
+    );
+
+    _descriptionSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _textAnimationController,
+            curve: const Interval(0.2, 0.9, curve: Curves.easeOut),
+          ),
+        );
+
+    // Dots animation - fade and scale
+    _dotsAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _dotsFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _dotsAnimationController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+
+    _dotsScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _dotsAnimationController,
+        curve: const Interval(0.0, 0.8, curve: Curves.elasticOut),
+      ),
+    );
+
+    // Button animation - slides from bottom
+    _buttonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _buttonFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _buttonAnimationController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+
+    _buttonSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _buttonAnimationController,
+            curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+          ),
+        );
+
+    // Start animations sequentially
+    _imageAnimationController.forward();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _textAnimationController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 400), () {
+      _dotsAnimationController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      _buttonAnimationController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _imageAnimationController.dispose();
+    _textAnimationController.dispose();
+    _dotsAnimationController.dispose();
+    _buttonAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,96 +166,165 @@ class WelcomeScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
-              const SizedBox(height: 40),
-              // Title
-              const Text(
-                'Welcome To the App',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
-                  letterSpacing: 0.5,
+              const SizedBox(height: 20),
+              // Illustration Section with animation
+              Expanded(
+                flex: 3,
+                child: FadeTransition(
+                  opacity: _imageFadeAnimation,
+                  child: SlideTransition(
+                    position: _imageSlideAnimation,
+                    child: Center(child: _buildIllustration()),
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              // Description
-              const Text(
-                "We're excited to help you pay and manage your service amount with ease.",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF666666),
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              // Illustration
-              Expanded(child: Center(child: _buildIllustration())),
-              // Pagination dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildDot(true),
-                  const SizedBox(width: 8),
-                  _buildDot(false),
-                  const SizedBox(width: 8),
-                  _buildDot(false),
-                ],
-              ),
-              const SizedBox(height: 32),
-              // Sign In Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignInScreen(),
+              // Content Section
+              Expanded(
+                flex: 2,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Title with animation
+                    FadeTransition(
+                      opacity: _titleFadeAnimation,
+                      child: SlideTransition(
+                        position: _titleSlideAnimation,
+                        child: const Text(
+                          'Welcome To the App',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: 0.5,
+                            height: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3A8A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'SIGN-IN',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+                    const SizedBox(height: 16),
+                    // Description with animation
+                    FadeTransition(
+                      opacity: _descriptionFadeAnimation,
+                      child: SlideTransition(
+                        position: _descriptionSlideAnimation,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text(
+                            "We're excited to help you pay and manage your service amount with ease.",
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[600],
+                              height: 1.6,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 32),
+                    // Navigation Dots with animation
+                    FadeTransition(
+                      opacity: _dotsFadeAnimation,
+                      child: ScaleTransition(
+                        scale: _dotsScaleAnimation,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildDot(true),
+                            const SizedBox(width: 8),
+                            _buildDot(false),
+                            const SizedBox(width: 8),
+                            _buildDot(false),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    // Sign In Button with animation
+                    FadeTransition(
+                      opacity: _buttonFadeAnimation,
+                      child: SlideTransition(
+                        position: _buttonSlideAnimation,
+                        child: Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue,
+                            borderRadius: BorderRadius.circular(35),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryBlue.withOpacity(0.3),
+                                offset: const Offset(0, 4),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(35),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(35),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SignInScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Center(
+                                child: Text(
+                                  'SIGN-IN',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Create Account Link with animation
+                    FadeTransition(
+                      opacity: _buttonFadeAnimation,
+                      child: SlideTransition(
+                        position: _buttonSlideAnimation,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpScreen(),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          child: const Text(
+                            'Create an account',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              // Create Account Link
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SignUpScreen(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Create an account',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF1E3A8A),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -112,117 +333,28 @@ class WelcomeScreen extends StatelessWidget {
   }
 
   Widget _buildIllustration() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Background decorative shapes
-        Positioned(
-          top: 40,
-          left: 20,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-          ),
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 300),
+      child: SvgPicture.asset(
+        'assets/images/welcome.svg',
+        fit: BoxFit.contain,
+        placeholderBuilder: (BuildContext context) => Container(
+          padding: const EdgeInsets.all(50),
+          child: const CircularProgressIndicator(),
         ),
-        Positioned(
-          bottom: 60,
-          right: 30,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDBEAFE).withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        // Main illustration
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Person illustration
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Body
-                  Positioned(
-                    bottom: 20,
-                    child: Container(
-                      width: 120,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A8A),
-                        borderRadius: BorderRadius.circular(60),
-                      ),
-                    ),
-                  ),
-                  // Head
-                  Positioned(
-                    top: 10,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 50,
-                      ),
-                    ),
-                  ),
-                  // Banner
-                  Positioned(
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'WELCOME',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildDot(bool isActive) {
-    return Container(
-      width: 8,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
         color: isActive ? const Color(0xFF1E3A8A) : const Color(0xFFD1D5DB),
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }

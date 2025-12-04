@@ -1,6 +1,7 @@
 import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../widgets/bank_loader.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 
@@ -246,8 +247,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                     child: Column(
                       children: [
-                        SizedBox(height: _getResponsiveSpacing(context, 20)),
-                        // Illustration Section with animation
                         if (!isLandscape || isTablet)
                           Expanded(
                             flex: _getIllustrationFlex(context),
@@ -301,9 +300,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   ),
                                 ),
                               ),
-                              SizedBox(
-                                height: _getResponsiveSpacing(context, 16),
-                              ),
+                              // SizedBox(
+                              //   height: _getResponsiveSpacing(context, 16),
+                              // ),
                               // Description with animation
                               FadeTransition(
                                 opacity: _descriptionFadeAnimation,
@@ -507,7 +506,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         fit: BoxFit.contain,
         placeholderBuilder: (BuildContext context) => Container(
           padding: EdgeInsets.all(_getResponsiveSpacing(context, 50)),
-          child: const CircularProgressIndicator(),
+          child: const RefreshLoader(color: AppTheme.primaryBlue),
         ),
       ),
     );

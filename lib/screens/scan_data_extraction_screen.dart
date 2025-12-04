@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../widgets/bank_loader.dart';
 import '../models/bank_data.dart';
 import '../services/api_service.dart';
 
@@ -372,11 +373,10 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
+                          child: RefreshLoader(
+                            size: 24,
+                            color: Colors.white,
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
                           ),
                         )
                       : const Text(

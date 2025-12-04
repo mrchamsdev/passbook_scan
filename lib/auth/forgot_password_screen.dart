@@ -1,6 +1,7 @@
 import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../widgets/bank_loader.dart';
 import 'verify_code_screen.dart';
 import 'sign_up_screen.dart';
 import '../services/network_service.dart';
@@ -256,11 +257,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
-                                child: CircularProgressIndicator(
+                                child: RefreshLoader(
+                                  size: 22,
+                                  color: Colors.white,
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
                                 ),
                               )
                             : const Text(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_theme.dart';
 import '../services/network_service.dart';
+import '../widgets/bank_loader.dart';
 import 'widgets/user_card.dart';
 import 'widgets/search_bar_widget.dart';
 import 'user_detail_screen.dart';
@@ -217,7 +218,7 @@ class UsersScreenState extends State<UsersScreen>
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+        child: RefreshLoader(color: AppTheme.primaryBlue),
       );
     }
 

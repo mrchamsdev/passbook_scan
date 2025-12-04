@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/bank_loader.dart';
 import 'sheets_provider/sheets_provider.dart';
 
 class DateRangeTab extends StatefulWidget {
@@ -206,7 +207,7 @@ class _DateRangeTabState extends State<DateRangeTab> {
             // Records List
             Expanded(
               child: widget.provider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: RefreshLoader(color: AppTheme.primaryBlue))
                   : widget.provider.records.isEmpty
                       ? _buildEmptyState()
                       : _buildRecordsList(),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'home_screen.dart';
+import 'sheets/sheets_screen.dart';
+import '../users/users_screen.dart';
 import '../settings/settings_screen.dart';
 import '../utils/app_theme.dart';
 
@@ -14,6 +16,11 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   bool _showBottomNav = true;
+  int _previousIndex = 0;
+  final GlobalKey<SheetsScreenState> _sheetsScreenKey =
+      GlobalKey<SheetsScreenState>();
+  final GlobalKey<UsersScreenState> _usersScreenKey =
+      GlobalKey<UsersScreenState>();
   late final List<Widget> _screens;
 
   @override
@@ -32,8 +39,8 @@ class _MainNavigationState extends State<MainNavigation> {
           });
         },
       ),
-      // DocsScreen(), // This will be "Yours" screen
-      // DocsScreen(), // This will be "Share" screen
+      SheetsScreen(key: _sheetsScreenKey),
+      UsersScreen(key: _usersScreenKey),
       SettingsScreen(),
     ];
   }
@@ -43,86 +50,100 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: _showBottomNav
-          ? Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: BottomNavigationBar(
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.white,
-                selectedItemColor: Colors.black,
-                unselectedItemColor: AppTheme.navUnselected,
-                selectedFontSize: 12,
-                unselectedFontSize: 12,
-                iconSize: 24,
-                elevation: 0,
-                selectedLabelStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
+          ? SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
                 ),
-                unselectedLabelStyle: TextStyle(
-                  color: AppTheme.navUnselected,
-                  fontWeight: FontWeight.w500,
+                child: BottomNavigationBar(
+                  currentIndex: _currentIndex,
+                  onTap: (index) {
+                    print('📱 [NAVIGATION] Tab clicked: Index $index');
+                    setState(() {
+                      _previousIndex = _currentIndex;
+                      _currentIndex = index;
+                    });
+                    // Trigger API refresh when Sheets tab is clicked
+                    if (index == 1 && _sheetsScreenKey.currentState != null) {
+                      print('📋 [NAVIGATION] Triggering Sheets API refresh...');
+                      _sheetsScreenKey.currentState!.refreshDataIfNeeded();
+                    }
+                    // Trigger API refresh when Users tab is clicked
+                    if (index == 2 && _usersScreenKey.currentState != null) {
+                      print('👥 [NAVIGATION] Triggering Users API refresh...');
+                      _usersScreenKey.currentState!.refreshDataIfNeeded();
+                    }
+                  },
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.white,
+                  selectedItemColor: Colors.black,
+                  unselectedItemColor: AppTheme.navUnselected,
+                  selectedFontSize: 12,
+                  unselectedFontSize: 12,
+                  iconSize: 24,
+                  elevation: 0,
+                  selectedLabelStyle: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    color: AppTheme.navUnselected,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  items: [
+                    BottomNavigationBarItem(
+                      icon: _buildSvgIcon(
+                        'assets/images/bottom_nav_home.svg',
+                        isActive: _currentIndex == 0,
+                      ),
+                      activeIcon: _buildSvgIcon(
+                        'assets/images/bottom_nav_home.svg',
+                        isActive: true,
+                      ),
+                      label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: _buildSvgIcon(
+                        'assets/images/bottom_nav_sheets.svg',
+                        isActive: _currentIndex == 1,
+                      ),
+                      activeIcon: _buildSvgIcon(
+                        'assets/images/bottom_nav_sheets.svg',
+                        isActive: true,
+                      ),
+                      label: 'Sheets',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: _buildSvgIcon(
+                        'assets/images/bottom_nav_users.svg',
+                        isActive: _currentIndex == 2,
+                      ),
+                      activeIcon: _buildSvgIcon(
+                        'assets/images/bottom_nav_users.svg',
+                        isActive: true,
+                      ),
+                      label: 'Users',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: _buildSvgIcon(
+                        'assets/images/bottom_nav_settings.svg',
+                        isActive: _currentIndex == 3,
+                      ),
+                      activeIcon: _buildSvgIcon(
+                        'assets/images/bottom_nav_settings.svg',
+                        isActive: true,
+                      ),
+                      label: 'Settings',
+                    ),
+                  ],
                 ),
-                items: [
-                  BottomNavigationBarItem(
-                    icon: _buildSvgIcon(
-                      'assets/images/bottom_nav_home.svg',
-                      isActive: _currentIndex == 0,
-                    ),
-                    activeIcon: _buildSvgIcon(
-                      'assets/images/bottom_nav_home.svg',
-                      isActive: true,
-                    ),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: _buildSvgIcon(
-                      'assets/images/bottom_nav_sheets.svg',
-                      isActive: _currentIndex == 1,
-                    ),
-                    activeIcon: _buildSvgIcon(
-                      'assets/images/bottom_nav_sheets.svg',
-                      isActive: true,
-                    ),
-                    label: 'Sheets',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: _buildSvgIcon(
-                      'assets/images/bottom_nav_users.svg',
-                      isActive: _currentIndex == 2,
-                    ),
-                    activeIcon: _buildSvgIcon(
-                      'assets/images/bottom_nav_users.svg',
-                      isActive: true,
-                    ),
-                    label: 'Users',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: _buildSvgIcon(
-                      'assets/images/bottom_nav_settings.svg',
-                      isActive: _currentIndex == 3,
-                    ),
-                    activeIcon: _buildSvgIcon(
-                      'assets/images/bottom_nav_settings.svg',
-                      isActive: true,
-                    ),
-                    label: 'Settings',
-                  ),
-                ],
               ),
             )
           : null,

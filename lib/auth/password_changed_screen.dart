@@ -53,9 +53,7 @@ class _PasswordChangedScreenState extends State<PasswordChangedScreen> {
         // Navigate to sign in screen
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const SignInScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
           (route) => false,
         );
       },
@@ -115,11 +113,11 @@ class _PasswordChangedScreenState extends State<PasswordChangedScreen> {
           if (statusCode >= 200 && statusCode < 300) {
             // Success - show success dialog
             String successMessage = 'Password updated successfully!';
-            
+
             if (responseBody is Map && responseBody.containsKey('message')) {
               successMessage = responseBody['message'].toString();
             }
-            
+
             _showSuccessDialog(successMessage);
           } else {
             // Error - extract and display user-friendly message in dialog

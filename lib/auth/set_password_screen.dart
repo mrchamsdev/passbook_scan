@@ -1,8 +1,13 @@
-import 'package:bank_scan/auth/password_changed_screen.dart';
+import 'package:bank_scan/auth/password_success_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/network_service.dart';
+import '../utils/custom_dialog.dart';
 
 class SetPasswordScreen extends StatefulWidget {
-  const SetPasswordScreen({super.key});
+  final String email;
+
+  const SetPasswordScreen({super.key, required this.email});
 
   @override
   State<SetPasswordScreen> createState() => _SetPasswordScreenState();
@@ -14,6 +19,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,16 +28,128 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     super.dispose();
   }
 
-  void _handleVerify() {
-    if (_formKey.currentState!.validate()) {
-      // Navigate to password changed screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) =>
-              const PasswordChangedScreen(email: '', name: ''),
-        ),
-      );
+  void _showErrorDialog(String message) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.error,
+      title: 'Password Reset Failed',
+    );
+  }
+
+  void _showSuccessDialog(String message) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.success,
+      title: 'Success',
+    );
+  }
+
+  void _handleVerify() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      var resetPasswordURL = '${dotenv.env['API_URL']}users/resetPassword';
+      print('Reset Password URL: $resetPasswordURL');
+
+      var payload = {
+        'email': widget.email,
+        'newPassword': _passwordController.text,
+        'confirmNewPassword': _confirmPasswordController.text,
+      };
+
+      print('Reset Password Payload: $payload');
+
+      var response = await ServiceWithDataPost(
+        resetPasswordURL,
+        payload,
+      ).data();
+
+      print('Reset Password Response: $response');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Check response format: [statusCode, responseBody]
+        if (response is List && response.length >= 2) {
+          int statusCode = response[0];
+          dynamic responseBody = response[1];
+
+          // Check if request was successful (200 or 201)
+          if (statusCode >= 200 && statusCode < 300) {
+            // Extract success message
+            String successMessage = 'Password reset successfully!';
+
+            if (responseBody is Map) {
+              if (responseBody.containsKey('message')) {
+                successMessage = responseBody['message'].toString();
+              }
+            }
+
+            // Show success message
+            _showSuccessDialog(successMessage);
+
+            // Navigate to password success screen after a short delay
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PasswordSuccessScreen(),
+                  ),
+                );
+              }
+            });
+          } else {
+            // Error - extract and display user-friendly message
+            String errorMessage = 'Failed to reset password. Please try again.';
+
+            if (responseBody is Map) {
+              // Try to extract message from response
+              if (responseBody.containsKey('message')) {
+                errorMessage = responseBody['message'].toString();
+              } else if (responseBody.containsKey('error')) {
+                errorMessage = responseBody['error'].toString();
+              } else if (responseBody.containsKey('errors')) {
+                // Handle multiple errors
+                var errors = responseBody['errors'];
+                if (errors is Map) {
+                  errorMessage = errors.values.first.toString();
+                } else if (errors is List && errors.isNotEmpty) {
+                  errorMessage = errors.first.toString();
+                }
+              }
+            }
+
+            // Display error in center popup dialog
+            _showErrorDialog(errorMessage);
+          }
+        } else {
+          // Unexpected response format
+          _showErrorDialog(
+            'Unexpected response from server. Please try again.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        _showErrorDialog(
+          'Network error. Please check your connection and try again.',
+        );
+      }
     }
   }
 
@@ -232,26 +350,43 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Verify Button
-                SizedBox(
+                // Confirm Button
+                Container(
                   width: double.infinity,
                   height: 56,
-                  child: ElevatedButton(
-                    onPressed: _handleVerify,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'VERIFY',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                  decoration: BoxDecoration(
+                    color: _isLoading
+                        ? const Color(0xFF1E3A8A).withOpacity(0.7)
+                        : const Color(0xFF1E3A8A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _isLoading ? null : _handleVerify,
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                'CONFIRM',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                   ),

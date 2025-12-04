@@ -130,7 +130,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
             // Store the auth token and user data
             if (authToken != null && authToken.isNotEmpty) {
-              MyApp.setAuthToken(
+              await MyApp.setAuthToken(
                 authToken,
                 userId: userId,
                 userName: userName,
@@ -146,38 +146,49 @@ class _SignInScreenState extends State<SignInScreen> {
               if (userEmail != null) {
                 print('User email stored: $userEmail');
               }
-            }
 
-            // Navigate to main app screen
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MainNavigation()),
-            );
+              // Clear entire navigation stack - AuthWrapper StreamBuilder will show MainNavigation
+              // Navigate to MainNavigation directly and remove all previous routes
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const MainNavigation(),
+                ),
+                (route) => false, // Remove all previous routes including WelcomeScreen
+              );
 
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Sign in successful!',
-                        style: TextStyle(fontSize: 14),
+              // Show success message after a brief delay to ensure navigation completes
+              if (mounted) {
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  // Use root navigator to show snackbar on MainNavigation
+                  final rootContext = Navigator.of(context, rootNavigator: true).context;
+                  if (rootContext.mounted) {
+                    ScaffoldMessenger.of(rootContext).showSnackBar(
+                      const SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Sign in successful!',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        margin: EdgeInsets.all(16),
+                        duration: Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(8)),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.all(16),
-                duration: Duration(seconds: 2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(8)),
-                ),
-              ),
-            );
+                    );
+                  }
+                });
+              }
+            }
           } else {
             // Error - extract and display user-friendly message
             String errorMessage =

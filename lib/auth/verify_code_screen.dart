@@ -1,7 +1,11 @@
 import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'set_password_screen.dart';
+import '../services/network_service.dart';
+import '../utils/custom_dialog.dart';
+import 'forgot_password_screen.dart';
 
 class VerifyCodeScreen extends StatefulWidget {
   final String email;
@@ -15,30 +19,141 @@ class VerifyCodeScreen extends StatefulWidget {
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   final _formKey = GlobalKey<FormState>();
   String _otpCode = '';
+  bool _isLoading = false;
 
-  void _handleVerify() {
-    if (_otpCode.length == 6) {
-      // Navigate to set password screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const SetPasswordScreen()),
-      );
-    } else {
+  void _showErrorDialog(String message) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.error,
+      title: 'Verification Failed',
+    );
+  }
+
+  void _showSuccessDialog(String message) {
+    CustomDialog.show(
+      context: context,
+      message: message,
+      type: DialogType.success,
+      title: 'Success',
+    );
+  }
+
+  void _handleVerify() async {
+    if (_otpCode.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a valid 6-digit OTP'),
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      var confirmPasswordURL =
+          '${dotenv.env['API_URL']}users/confirmForgotPassword';
+      print('Confirm Forgot Password URL: $confirmPasswordURL');
+
+      var payload = {'email': widget.email, 'confirmationCode': _otpCode};
+
+      print('Confirm Forgot Password Payload: $payload');
+
+      var response = await ServiceWithDataPost(
+        confirmPasswordURL,
+        payload,
+      ).data();
+
+      print('Confirm Forgot Password Response: $response');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Check response format: [statusCode, responseBody]
+        if (response is List && response.length >= 2) {
+          int statusCode = response[0];
+          dynamic responseBody = response[1];
+
+          // Check if request was successful (200 or 201)
+          if (statusCode >= 200 && statusCode < 300) {
+            // Extract success message
+            String successMessage = 'OTP verified successfully!';
+
+            if (responseBody is Map) {
+              if (responseBody.containsKey('message')) {
+                successMessage = responseBody['message'].toString();
+              }
+            }
+
+            // Show success message
+            _showSuccessDialog(successMessage);
+
+            // Navigate to set password screen after a short delay
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SetPasswordScreen(email: widget.email),
+                  ),
+                );
+              }
+            });
+          } else {
+            // Error - extract and display user-friendly message
+            String errorMessage = 'Invalid OTP. Please try again.';
+
+            if (responseBody is Map) {
+              // Try to extract message from response
+              if (responseBody.containsKey('message')) {
+                errorMessage = responseBody['message'].toString();
+              } else if (responseBody.containsKey('error')) {
+                errorMessage = responseBody['error'].toString();
+              } else if (responseBody.containsKey('errors')) {
+                // Handle multiple errors
+                var errors = responseBody['errors'];
+                if (errors is Map) {
+                  errorMessage = errors.values.first.toString();
+                } else if (errors is List && errors.isNotEmpty) {
+                  errorMessage = errors.first.toString();
+                }
+              }
+            }
+
+            // Display error in center popup dialog
+            _showErrorDialog(errorMessage);
+          }
+        } else {
+          // Unexpected response format
+          _showErrorDialog(
+            'Unexpected response from server. Please try again.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        _showErrorDialog(
+          'Network error. Please check your connection and try again.',
+        );
+      }
     }
   }
 
-  void _handleResend() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP has been resent to your email'),
-        backgroundColor: Color(0xFF1E3A8A),
-      ),
+  void _handleResend() async {
+    // Navigate back to forgot password screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
     );
   }
 
@@ -75,9 +190,12 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 ),
                 const SizedBox(height: 8),
                 // Subtitle
-                const Text(
-                  'An authentication code has been sent to your Phone Number',
-                  style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
+                Text(
+                  'An authentication code has been sent to ${widget.email}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF666666),
+                  ),
                 ),
                 const SizedBox(height: 40),
                 // OTP Field Label
@@ -94,8 +212,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 PinCodeTextField(
                   appContext: context,
                   length: 6,
-                  obscureText: true,
-                  obscuringCharacter: 'X',
+                  obscureText: false,
                   animationType: AnimationType.fade,
                   pinTheme: PinTheme(
                     shape: PinCodeFieldShape.box,
@@ -189,25 +306,42 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 ),
                 const SizedBox(height: 40),
                 // Verify Button
-                SizedBox(
+                Container(
                   width: double.infinity,
                   height: 56,
-                  child: ElevatedButton(
-                    onPressed: _handleVerify,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'VERIFY',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                  decoration: BoxDecoration(
+                    color: _isLoading
+                        ? const Color(0xFF1E3A8A).withOpacity(0.7)
+                        : const Color(0xFF1E3A8A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _isLoading ? null : _handleVerify,
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                'VERIFY',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                   ),

@@ -2,15 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../models/bank_data.dart';
-import 'network_service.dart';
+import 'package:bank_scan/myapp.dart';
 
 class ApiService {
   static String get baseUrl => dotenv.env['API_URL'] ?? '';
 
   static String get storageUrl => dotenv.env['API_URL'] ?? '';
 
-  // Get API timeout from environment variables, default to 30 seconds
   static int get apiTimeout =>
       int.tryParse(dotenv.env['API_TIMEOUT'] ?? '30') ?? 30;
 
@@ -24,6 +22,9 @@ class ApiService {
       print('🌐 [API CALL] Making POST request to: $scanURL');
 
       var request = http.MultipartRequest('POST', Uri.parse(scanURL));
+
+      // Add Authorization header with bearer token
+      request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
 
       var imageBytes = await imageFile.readAsBytes();
       print('📊 [IMAGE DATA] Image bytes length: ${imageBytes.length}');
@@ -102,67 +103,54 @@ class ApiService {
     }
   }
 
-  static Future<bool> storeBankData(BankData bankData) async {
-    try {
-      var paymentURL = '${dotenv.env['API_URL']}bank/payment';
-      print('Payment URL: $paymentURL');
-
-      var payload = {
-        'accountNumber': bankData.accountNumber,
-        'ifscCode': bankData.ifscCode,
-        'customerName': bankData.accountHolderName,
-        'bankName': bankData.branchName,
-      };
-
-      print('Payment Payload: $payload');
-
-      var response = await ServiceWithDataPost(paymentURL, payload).data();
-
-      print('Payment Response: $response');
-
-      // Check response format: [statusCode, responseBody]
-      if (response is List && response.length >= 2) {
-        int statusCode = response[0];
-        return statusCode >= 200 && statusCode < 300;
-      }
-
-      return false;
-    } catch (e) {
-      print('💥 [STORAGE FAILED] Exception occurred: $e');
-      throw Exception('Storage failed: $e');
-    }
-  }
-
   static Future<bool> addPayment({
     required String accountNumber,
     required String ifscCode,
     required String customerName,
-    required String bankName,
+    required String paymentDate,
     required String amountToPay,
     required File photo,
+    String? bankName,
     String? nickname,
     String? phoneNumber,
+    String? panNumber,
+    String? aadhaarNumber,
     String? comments,
     String? bankInfoId,
   }) async {
     try {
+      print('🔄 [PAYMENT UPLOAD] Starting payment submission process...');
+
       var paymentURL = '${dotenv.env['API_URL']}bank/payment';
-      print('Payment URL: $paymentURL');
+      print('🌐 [API CALL] Making POST request to: $paymentURL');
 
       var request = http.MultipartRequest('POST', Uri.parse(paymentURL));
 
-      // Add text fields
+      // Add Authorization header with bearer token
+      request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
+
+      // Add required text fields
       request.fields['accountNumber'] = accountNumber;
       request.fields['ifscCode'] = ifscCode;
       request.fields['customerName'] = customerName;
-      request.fields['bankName'] = bankName;
+      request.fields['paymentDate'] = paymentDate;
       request.fields['amountToPay'] = amountToPay;
 
+      // Add optional fields
+      if (bankName != null && bankName.isNotEmpty) {
+        request.fields['bankName'] = bankName;
+      }
       if (nickname != null && nickname.isNotEmpty) {
         request.fields['nickname'] = nickname;
       }
       if (phoneNumber != null && phoneNumber.isNotEmpty) {
         request.fields['phoneNumber'] = phoneNumber;
+      }
+      if (panNumber != null && panNumber.isNotEmpty) {
+        request.fields['panNumber'] = panNumber;
+      }
+      if (aadhaarNumber != null && aadhaarNumber.isNotEmpty) {
+        request.fields['aadhaarNumber'] = aadhaarNumber;
       }
       if (comments != null && comments.isNotEmpty) {
         request.fields['comments'] = comments;
@@ -171,8 +159,43 @@ class ApiService {
         request.fields['bankInfoId'] = bankInfoId;
       }
 
+      // Log all fields being sent
+      print('📋 [PAYMENT PAYLOAD] Fields being sent:');
+      print('   🔢 Account Number: $accountNumber');
+      print('   🏛️ IFSC Code: $ifscCode');
+      print('   👤 Customer Name: $customerName');
+      print('   📅 Payment Date: $paymentDate');
+      print('   💰 Amount To Pay: $amountToPay');
+      if (bankName != null && bankName.isNotEmpty) {
+        print('   🏢 Bank Name: $bankName');
+      }
+      if (nickname != null && nickname.isNotEmpty) {
+        print('   🏷️ Nickname: $nickname');
+      }
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        print('   📱 Phone Number: $phoneNumber');
+      }
+      if (panNumber != null && panNumber.isNotEmpty) {
+        print('   🆔 PAN Number: $panNumber');
+      }
+      if (aadhaarNumber != null && aadhaarNumber.isNotEmpty) {
+        print('   🆔 Aadhaar Number: $aadhaarNumber');
+      }
+      if (comments != null && comments.isNotEmpty) {
+        print('   💬 Comments: $comments');
+      }
+      if (bankInfoId != null && bankInfoId.isNotEmpty) {
+        print('   🏦 Bank Info ID: $bankInfoId');
+      }
+
       // Add photo file
+      print('📁 [PHOTO INFO] Photo file path: ${photo.path}');
+      print('📁 [PHOTO INFO] Photo file size: ${await photo.length()} bytes');
+      print('📁 [PHOTO INFO] Photo file exists: ${await photo.exists()}');
+
       var imageBytes = await photo.readAsBytes();
+      print('📊 [PHOTO DATA] Photo bytes length: ${imageBytes.length}');
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'photo',
@@ -180,28 +203,109 @@ class ApiService {
           filename: 'payment_photo.jpg',
         ),
       );
+      print('✅ [PHOTO] Photo file added to request');
 
-      print('Payment Payload: ${request.fields}');
-      print('Photo file: ${photo.path}');
-
+      print('⏳ [UPLOAD] Sending payment request to server...');
       var streamedResponse = await request.send();
+      print('✅ [UPLOAD] Request sent, waiting for response...');
+
       var response = await http.Response.fromStream(streamedResponse);
 
-      print('Payment Response Status: ${response.statusCode}');
-      print('Payment Response Body: ${response.body}');
+      print('📥 [RESPONSE] Received response from server');
+      print('📊 [RESPONSE] Status Code: ${response.statusCode}');
+      print('📄 [RESPONSE] Headers: ${response.headers}');
+      print('📝 [RESPONSE] Body: ${response.body}');
+      print('📝 [RESPONSE] Body length: ${response.body.length} characters');
 
       final bool isSuccess =
           response.statusCode == 200 || response.statusCode == 201;
 
+      if (isSuccess) {
+        print('🎉 [SUCCESS] Payment submission successful!');
+        try {
+          var responseData = jsonDecode(response.body);
+          print('📋 [RESPONSE DATA] Full response: $responseData');
+
+          // Print individual fields from response
+          if (responseData is Map<String, dynamic>) {
+            print('🔍 [EXTRACTED DATA] Parsing response:');
+
+            // Print top-level fields
+            if (responseData.containsKey('statusCode')) {
+              print('   📊 Status Code: ${responseData['statusCode']}');
+            }
+            if (responseData.containsKey('status')) {
+              print('   ✅ Status: ${responseData['status']}');
+            }
+            if (responseData.containsKey('message')) {
+              print('   💬 Message: ${responseData['message']}');
+            }
+
+            // Print payment object fields if it exists
+            if (responseData.containsKey('payment') &&
+                responseData['payment'] is Map) {
+              var payment = responseData['payment'] as Map<String, dynamic>;
+              print('   💳 Payment Details:');
+              payment.forEach((key, value) {
+                print('      • $key: $value');
+              });
+            }
+
+            // Also check if fields are at top level
+            if (responseData.containsKey('id')) {
+              print('   🆔 Payment ID: ${responseData['id']}');
+            }
+            if (responseData.containsKey('userId')) {
+              print('   👤 User ID: ${responseData['userId']}');
+            }
+            if (responseData.containsKey('bankInfoId')) {
+              print('   🏦 Bank Info ID: ${responseData['bankInfoId']}');
+            }
+            if (responseData.containsKey('amountToPay')) {
+              print('   💰 Amount To Pay: ${responseData['amountToPay']}');
+            }
+            if (responseData.containsKey('paymentDate')) {
+              print('   📅 Payment Date: ${responseData['paymentDate']}');
+            }
+            if (responseData.containsKey('createdDate')) {
+              print('   📅 Created Date: ${responseData['createdDate']}');
+            }
+            if (responseData.containsKey('updatedDate')) {
+              print('   📅 Updated Date: ${responseData['updatedDate']}');
+            }
+          }
+        } catch (e) {
+          print('⚠️ [WARNING] Could not parse response JSON: $e');
+        }
+      } else {
+        print('❌ [API ERROR] Status Code: ${response.statusCode}');
+        print('❌ [API ERROR] Response Body: ${response.body}');
+
+        // Try to parse error message
+        String errorMessage = 'API Error: ${response.statusCode}';
+        try {
+          var errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          } else {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          errorMessage = response.body;
+        }
+
+        throw Exception('API Error: ${response.statusCode} - $errorMessage');
+      }
+
       return isSuccess;
     } catch (e) {
-      print('💥 [PAYMENT FAILED] Exception occurred: $e');
+      print('💥 [PAYMENT FAILED] Exception: $e');
+      print('🔄 [PAYMENT FAILED] Stack trace: ${e.toString()}');
       throw Exception('Payment submission failed: $e');
+    } finally {
+      print('🏁 [PAYMENT UPLOAD] Process completed');
     }
-  }
-
-  // Helper method to print formatted logs
-  static void _printLog(String emoji, String title, String message) {
-    print('$emoji [$title] $message');
   }
 }

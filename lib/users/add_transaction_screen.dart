@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import '../utils/app_theme.dart';
 import '../services/network_service.dart';
+import '../widgets/bank_loader.dart';
 import 'widgets/user_avatar.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -256,8 +257,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    UserAvatar(initials: widget.initials, size: 80),
-                    const SizedBox(height: 16),
                     Text(
                       widget.displayName,
                       style: const TextStyle(
@@ -267,11 +266,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildInfoRow('PAN', widget.panNumber ?? 'N/A'),
-                    const SizedBox(height: 8),
+
                     _buildInfoRow('AC', widget.accountNumber ?? 'N/A'),
                     const SizedBox(height: 8),
                     _buildInfoRow('IFSC', widget.ifscCode ?? 'N/A'),
+                    const SizedBox(height: 8),
+                    _buildInfoRow('PAN', widget.panNumber ?? 'N/A'),
                   ],
                 ),
               ),
@@ -380,11 +380,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
+                          child: RefreshLoader(
+                            size: 20,
+                            color: Colors.white,
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
                           ),
                         )
                       : const Text(

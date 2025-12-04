@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import '../utils/app_theme.dart';
 import '../services/network_service.dart';
+import '../widgets/bank_loader.dart';
 import 'widgets/user_avatar.dart';
 import 'add_transaction_screen.dart';
 
@@ -148,9 +149,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-            )
+          ? const Center(child: RefreshLoader(color: AppTheme.primaryBlue))
           : _errorMessage != null
           ? Center(
               child: Column(
@@ -204,8 +203,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                UserAvatar(initials: initials, size: 80),
-                const SizedBox(height: 16),
                 Text(
                   displayName,
                   style: const TextStyle(
@@ -215,11 +212,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildInfoRow(
-                  'PAN',
-                  _bankInfo!['panNumber'] as String? ?? 'N/A',
-                ),
-                const SizedBox(height: 8),
+
                 _buildInfoRow(
                   'AC',
                   _bankInfo!['accountNumber'] as String? ?? 'N/A',
@@ -228,6 +221,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 _buildInfoRow(
                   'IFSC',
                   _bankInfo!['ifscCode'] as String? ?? 'N/A',
+                ),
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  'PAN',
+                  _bankInfo!['panNumber'] as String? ?? 'N/A',
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
@@ -379,7 +377,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }) {
     final amount = transaction['amountToPay'] as String? ?? '0';
     final paymentDate = transaction['paymentDate'] as String? ?? '';
-    final entryPerson = _userData?['name'] as String? ?? 'A Phani';
+    final entryPerson = _userData?['name'] as String? ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

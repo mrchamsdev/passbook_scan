@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'auth/welcome_screen.dart';
 import 'screens/main_navigation.dart';
 import 'utils/app_theme.dart';
+import 'widgets/bank_loader.dart';
 import 'myapp.dart';
 
 Future<void> main() async {
@@ -66,7 +67,7 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(child: RefreshLoader(color: AppTheme.primaryBlue)),
           );
         } else if (snapshot.hasError) {
           return Scaffold(

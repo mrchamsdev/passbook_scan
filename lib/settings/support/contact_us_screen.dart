@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/custom_dialog.dart';
+import '../../widgets/bank_loader.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -316,9 +317,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(
+                child: RefreshLoader(
+                  size: 22,
+                  color: Colors.white,
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : const Text(

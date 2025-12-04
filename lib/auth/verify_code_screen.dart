@@ -2,6 +2,7 @@ import 'package:bank_scan/utils/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import '../widgets/bank_loader.dart';
 import 'set_password_screen.dart';
 import '../services/network_service.dart';
 import '../utils/custom_dialog.dart';
@@ -326,11 +327,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
-                                child: CircularProgressIndicator(
+                                child: RefreshLoader(
+                                  size: 22,
+                                  color: Colors.white,
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
                                 ),
                               )
                             : const Text(

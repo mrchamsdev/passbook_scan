@@ -5,6 +5,7 @@ import '../utils/custom_dialog.dart';
 import '../auth/welcome_screen.dart';
 import '../myapp.dart';
 import '../services/network_service.dart';
+import '../widgets/bank_loader.dart';
 import 'widgets/profile_header_card.dart';
 import 'widgets/profile_details_section.dart';
 import 'widgets/support_section.dart';
@@ -123,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
+                    child: RefreshLoader(
                       color: AppTheme.primaryBlue,
                     ),
                   )
@@ -163,7 +164,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Profile Details Section
-                        ProfileDetailsSection(userData: _userData ?? {}),
+                        ProfileDetailsSection(
+                          userData: _userData ?? {},
+                          onProfileUpdated: _fetchUserDetails,
+                        ),
                         const SizedBox(height: 24),
                         // Support Section
                         SupportSection(

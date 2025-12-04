@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../utils/app_theme.dart';
+import '../../../widgets/bank_loader.dart';
 import 'corner_brackets.dart';
 import 'scanner_icon.dart';
 
@@ -59,10 +60,8 @@ class ScanDocumentSection extends StatelessWidget {
                   )
                 : isProcessing
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppTheme.primaryBlue,
-                      ),
+                    child: RefreshLoader(
+                      color: AppTheme.primaryBlue,
                     ),
                   )
                 : Stack(

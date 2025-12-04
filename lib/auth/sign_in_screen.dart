@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../widgets/bank_loader.dart';
 import 'forgot_password_screen.dart';
 import 'sign_up_screen.dart';
 import '../screens/main_navigation.dart';
@@ -449,11 +450,10 @@ class _SignInScreenState extends State<SignInScreen> {
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
-                                child: CircularProgressIndicator(
+                                child: RefreshLoader(
+                                  size: 22,
+                                  color: Colors.white,
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
                                 ),
                               )
                             : const Text(

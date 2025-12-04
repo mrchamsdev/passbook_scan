@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 
@@ -200,6 +201,145 @@ class _LoadingTextState extends State<_LoadingText>
   String _getDots(double value) {
     final count = ((value * 3) % 4).floor();
     return '.' * count;
+  }
+}
+
+/// Compact refresh loader - Professional replacement for CircularProgressIndicator
+/// Perfect for inline loading states and refresh indicators
+class RefreshLoader extends StatefulWidget {
+  final Color? color;
+  final double? size;
+  final double strokeWidth;
+
+  const RefreshLoader({
+    super.key,
+    this.color,
+    this.size,
+    this.strokeWidth = 3.0,
+  });
+
+  @override
+  State<RefreshLoader> createState() => _RefreshLoaderState();
+}
+
+class _RefreshLoaderState extends State<RefreshLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.size ?? 40.0;
+    final color = widget.color ?? AppTheme.primaryBlue;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            size: Size(size, size),
+            painter: _RefreshLoaderPainter(
+              progress: _rotationAnimation.value,
+              color: color,
+              strokeWidth: widget.strokeWidth,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Custom painter for the refresh loader
+class _RefreshLoaderPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double strokeWidth;
+
+  _RefreshLoaderPainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Draw background circle
+    final backgroundPaint = Paint()
+      ..color = color.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, backgroundPaint);
+
+    // Draw animated arc with gradient
+    final startAngle = -math.pi / 2 + (progress * 2 * math.pi);
+    const sweepAngle = 2.5 * math.pi; // 270 degrees
+
+    // Create gradient effect
+    final gradient = SweepGradient(
+      startAngle: 0,
+      endAngle: 2 * math.pi,
+      colors: [
+        color,
+        color.withOpacity(0.4),
+        color,
+      ],
+      stops: const [0.0, 0.5, 1.0],
+      transform: GradientRotation(progress * 2 * math.pi),
+    );
+
+    final arcPaint = Paint()
+      ..shader = gradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      arcPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RefreshLoaderPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }
 

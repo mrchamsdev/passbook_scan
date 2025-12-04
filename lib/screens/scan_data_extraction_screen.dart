@@ -57,7 +57,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
-    return '$day-$month-$year';
+    return '$year-$month-$day';
   }
 
   @override
@@ -114,6 +114,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
     if (_customerNameController.text.isEmpty ||
         _accountNumberController.text.isEmpty ||
         _ifscCodeController.text.isEmpty ||
+        _selectedDate == null ||
         _amountToPayController.text.isEmpty) {
       _showSnackBar('Please fill all required fields', false);
       return;
@@ -133,16 +134,23 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
         accountNumber: _accountNumberController.text.trim(),
         ifscCode: _ifscCodeController.text.trim(),
         customerName: _customerNameController.text.trim(),
-        bankName: widget.bankData.branchName.isNotEmpty
-            ? widget.bankData.branchName
-            : 'Not specified',
+        paymentDate: _dateController.text.trim(),
         amountToPay: _amountToPayController.text.trim(),
         photo: photoFile,
+        bankName: widget.bankData.branchName.isNotEmpty
+            ? widget.bankData.branchName
+            : null,
         nickname: _nicknameController.text.trim().isNotEmpty
             ? _nicknameController.text.trim()
             : null,
         phoneNumber: _phoneNumberController.text.trim().isNotEmpty
             ? _phoneNumberController.text.trim()
+            : null,
+        panNumber: _panController.text.trim().isNotEmpty
+            ? _panController.text.trim()
+            : null,
+        aadhaarNumber: _aadharController.text.trim().isNotEmpty
+            ? _aadharController.text.trim()
             : null,
         comments: _commentController.text.trim().isNotEmpty
             ? _commentController.text.trim()
@@ -307,22 +315,25 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _phoneNumberController,
-                      label: 'Phone Number',
+                      label: 'Phone Number (Optional)',
                       icon: Icons.phone,
                       keyboardType: TextInputType.phone,
+                      isOptional: true,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _aadharController,
-                      label: 'Aadhar Number',
+                      label: 'Aadhar Number (Optional)',
                       icon: Icons.badge,
                       keyboardType: TextInputType.number,
+                      isOptional: true,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _panController,
-                      label: 'PAN Number',
+                      label: 'PAN Number (Optional)',
                       icon: Icons.credit_card,
+                      isOptional: true,
                     ),
                     const SizedBox(height: 16),
                     _buildCommentField(),
@@ -421,7 +432,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
       readOnly: true,
       onTap: _selectDate,
       decoration: InputDecoration(
-        labelText: 'Date',
+        labelText: 'Payment Date',
         prefixIcon: const Icon(
           Icons.calendar_today,
           color: AppTheme.primaryBlue,

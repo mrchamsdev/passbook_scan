@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_theme.dart';
 import '../utils/custom_dialog.dart';
+import '../widgets/bank_loader.dart';
 import 'sign_in_screen.dart';
 
 class PasswordChangedScreen extends StatefulWidget {
@@ -346,11 +347,10 @@ class _PasswordChangedScreenState extends State<PasswordChangedScreen> {
                         ? const SizedBox(
                             height: 22,
                             width: 22,
-                            child: CircularProgressIndicator(
+                            child: RefreshLoader(
+                              size: 22,
+                              color: Colors.white,
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
                             ),
                           )
                         : Text(

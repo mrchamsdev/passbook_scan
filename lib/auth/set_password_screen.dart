@@ -1,6 +1,7 @@
 import 'package:bank_scan/auth/password_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../widgets/bank_loader.dart';
 import '../services/network_service.dart';
 import '../utils/custom_dialog.dart';
 
@@ -371,11 +372,10 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
-                                child: CircularProgressIndicator(
+                                child: RefreshLoader(
+                                  size: 22,
+                                  color: Colors.white,
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
                                 ),
                               )
                             : const Text(

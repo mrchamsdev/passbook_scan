@@ -151,17 +151,19 @@ class _SignInScreenState extends State<SignInScreen> {
               // Clear entire navigation stack - AuthWrapper StreamBuilder will show MainNavigation
               // Navigate to MainNavigation directly and remove all previous routes
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => const MainNavigation(),
-                ),
-                (route) => false, // Remove all previous routes including WelcomeScreen
+                MaterialPageRoute(builder: (context) => const MainNavigation()),
+                (route) =>
+                    false, // Remove all previous routes including WelcomeScreen
               );
 
               // Show success message after a brief delay to ensure navigation completes
               if (mounted) {
                 Future.delayed(const Duration(milliseconds: 500), () {
                   // Use root navigator to show snackbar on MainNavigation
-                  final rootContext = Navigator.of(context, rootNavigator: true).context;
+                  final rootContext = Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  ).context;
                   if (rootContext.mounted) {
                     ScaffoldMessenger.of(rootContext).showSnackBar(
                       const SnackBar(
@@ -377,8 +379,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your password';
                     }
-                    if (value.length < 10) {
-                      return 'Password must be at least 10 characters';
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
                     }
                     return null;
                   },

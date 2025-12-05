@@ -11,18 +11,14 @@ class AddTransactionScreen extends StatefulWidget {
   final int bankInfoId;
   final String displayName;
   final String initials;
-  final String? panNumber;
-  final String? accountNumber;
-  final String? ifscCode;
+  final Map<String, dynamic>? bankInfo;
 
   const AddTransactionScreen({
     super.key,
     required this.bankInfoId,
     required this.displayName,
     required this.initials,
-    this.panNumber,
-    this.accountNumber,
-    this.ifscCode,
+    this.bankInfo,
   });
 
   @override
@@ -76,7 +72,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       setState(() {
         _selectedDate = picked;
         _paymentDateController.text = _formatDateForDisplay(picked);
-      });
+      }); 
     }
   }
 
@@ -267,11 +263,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    _buildInfoRow('AC', widget.accountNumber ?? 'N/A'),
+                    _buildInfoRow('AC', widget.bankInfo?['accountNumber'] as String? ?? 'N/A'),
                     const SizedBox(height: 8),
-                    _buildInfoRow('IFSC', widget.ifscCode ?? 'N/A'),
+                    _buildInfoRow('IFSC', widget.bankInfo?['ifscCode'] as String? ?? 'N/A'),
                     const SizedBox(height: 8),
-                    _buildInfoRow('PAN', widget.panNumber ?? 'N/A'),
+                    _buildInfoRow('PAN', widget.bankInfo?['panNumber'] as String? ?? 'N/A'),
                   ],
                 ),
               ),

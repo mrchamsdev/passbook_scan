@@ -20,29 +20,25 @@ class _MonthTabState extends State<MonthTab> {
   void initState() {
     super.initState();
     _selectedMonth = DateTime.now();
-    // Defer API call until after build phase
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // First ensure all data is loaded, then apply month filter
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // If no data loaded yet, fetch all first
+      if (widget.provider.records.isEmpty && !widget.provider.isLoading) {
+        await widget.provider.fetchAll();
+      }
+      // Then apply month filter
       _loadSheets();
     });
   }
 
-  Future<void> _loadSheets() async {
+  void _loadSheets() {
     if (_selectedMonth == null) return;
     
-    await widget.provider.fetchByMonth(
+    // Filter existing data by month
+    widget.provider.fetchByMonth(
       month: _selectedMonth!.month,
       year: _selectedMonth!.year,
     );
-    
-    if (mounted && widget.provider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.provider.errorMessage!),
-          backgroundColor: AppTheme.errorColor,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   String _formatMonth(DateTime date) {

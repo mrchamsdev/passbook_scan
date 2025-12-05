@@ -122,6 +122,8 @@ class UsersScreenState extends State<UsersScreen>
 
   void _navigateToUserDetail(Map<String, dynamic> userData) {
     final bankInfoId = userData['id'] as int?;
+
+    print('🔍 [USERS TAB] Navigating to user detail with ID: $bankInfoId');
     if (bankInfoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid bank information ID')),
@@ -217,9 +219,7 @@ class UsersScreenState extends State<UsersScreen>
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: RefreshLoader(color: AppTheme.primaryBlue),
-      );
+      return const Center(child: RefreshLoader(color: AppTheme.primaryBlue));
     }
 
     if (_errorMessage != null) {

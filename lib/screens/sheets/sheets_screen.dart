@@ -56,16 +56,8 @@ class SheetsScreenState extends State<SheetsScreen>
         now.difference(_lastRefreshTime!) > _refreshInterval) {
       _lastRefreshTime = now;
       print('✅ [SHEETS TAB] Triggering API refresh...');
-      if (_isMonthFilter) {
-        final currentMonth = DateTime.now();
-        print('📅 [SHEETS TAB] Fetching data for month: ${currentMonth.month}/${currentMonth.year}');
-        _provider.fetchByMonth(
-          month: currentMonth.month,
-          year: currentMonth.year,
-        );
-      } else {
-        print('📅 [SHEETS TAB] Date Range tab is active - manual refresh required');
-      }
+      // First fetch all data
+      _provider.fetchAll();
     } else {
       final timeSinceLastRefresh = now.difference(_lastRefreshTime!);
       print('⏸️ [SHEETS TAB] Skipping refresh - Only ${timeSinceLastRefresh.inSeconds}s since last refresh (cooldown: ${_refreshInterval.inSeconds}s)');

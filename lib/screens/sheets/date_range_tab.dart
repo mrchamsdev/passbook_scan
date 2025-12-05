@@ -63,23 +63,25 @@ class _DateRangeTabState extends State<DateRangeTab> {
     }
   }
 
-  Future<void> _loadSheets() async {
+  @override
+  void initState() {
+    super.initState();
+    // First ensure all data is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (widget.provider.records.isEmpty && !widget.provider.isLoading) {
+        await widget.provider.fetchAll();
+      }
+    });
+  }
+
+  void _loadSheets() {
     if (_startDate == null || _endDate == null) return;
 
-    await widget.provider.fetchByDateRange(
+    // Filter existing data by date range
+    widget.provider.fetchByDateRange(
       startDate: _formatDateForApi(_startDate!),
       endDate: _formatDateForApi(_endDate!),
     );
-
-    if (mounted && widget.provider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.provider.errorMessage!),
-          backgroundColor: AppTheme.errorColor,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   String _getRecordDate(Map<String, dynamic> record) {

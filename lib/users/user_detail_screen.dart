@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path/path.dart' as path;
 import '../utils/app_theme.dart';
 import '../services/network_service.dart';
+import '../services/excel_service.dart';
 import '../widgets/bank_loader.dart';
-import 'widgets/user_avatar.dart';
 import 'add_transaction_screen.dart';
 
 class UserDetailScreen extends StatefulWidget {
@@ -21,6 +24,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   String? _errorMessage;
   Map<String, dynamic>? _userData;
   Map<String, dynamic>? _bankInfo;
+  List<dynamic> _bankInfoList = [];
+  String? _idType;
   List<dynamic> _futureTransactions = [];
   List<dynamic> _pastTransactions = [];
 
@@ -47,9 +52,39 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         dynamic responseBody = response[1];
 
         if (statusCode == 200 && responseBody != null) {
+          _idType = responseBody['idType'] as String?;
+          _userData = responseBody['user'] as Map<String, dynamic>?;
+
+          // Handle bankInfo - can be either a single object or a list
+          final bankInfoData = responseBody['bankInfo'];
+          if (bankInfoData is List) {
+            // When idType is "userId", bankInfo is a list
+            _bankInfoList = bankInfoData;
+            // Find the bankInfo that matches the bankInfoId
+            try {
+              _bankInfo =
+                  bankInfoData.firstWhere(
+                        (item) =>
+                            (item as Map<String, dynamic>)['id'] ==
+                            widget.bankInfoId,
+                      )
+                      as Map<String, dynamic>?;
+            } catch (e) {
+              // BankInfo not found in list, use first one or null
+              _bankInfo = bankInfoData.isNotEmpty
+                  ? bankInfoData[0] as Map<String, dynamic>?
+                  : null;
+            }
+          } else if (bankInfoData is Map) {
+            // When idType is "bankInfoId", bankInfo is a single object
+            _bankInfo = bankInfoData as Map<String, dynamic>?;
+            _bankInfoList = [];
+          } else {
+            _bankInfo = null;
+            _bankInfoList = [];
+          }
+
           setState(() {
-            _userData = responseBody['user'] as Map<String, dynamic>?;
-            _bankInfo = responseBody['bankInfo'] as Map<String, dynamic>?;
             _futureTransactions =
                 responseBody['futureTransactions'] as List<dynamic>? ?? [];
             _pastTransactions =
@@ -115,6 +150,84 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     }
   }
 
+  Future<void> _downloadExcel() async {
+    if (_bankInfo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No bank information available'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+        ),
+      );
+
+      // Generate Excel file using the service
+      final filePath = await ExcelService.generateBankStatementExcel(
+        customerName: displayName,
+        bankInfo: _bankInfo!,
+        futureTransactions: _futureTransactions,
+        pastTransactions: _pastTransactions,
+        entryPersonName: _userData?['name'] as String?,
+      );
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Get file name from path
+      final fileName = path.basename(filePath);
+
+      // Show success message and share/open file
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Excel file saved: $fileName'),
+            backgroundColor: AppTheme.primaryBlue,
+            action: SnackBarAction(
+              label: 'Open',
+              textColor: Colors.white,
+              onPressed: () async {
+                await OpenFilex.open(filePath);
+              },
+            ),
+          ),
+        );
+
+        // Share the file
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          text: 'Bank Statement for $displayName',
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating Excel: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+      print('Error generating Excel: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,6 +260,13 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: AppTheme.textPrimary),
+            onPressed: _downloadExcel,
+            tooltip: 'Download Excel',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: RefreshLoader(color: AppTheme.primaryBlue))
@@ -186,7 +306,32 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   Widget _buildViewMode() {
     if (_bankInfo == null) {
-      return const Center(child: Text('No data available'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_balance_outlined,
+              size: 64,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No bank information available',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please try refreshing or contact support',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
     }
 
     return SingleChildScrollView(
@@ -227,56 +372,59 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   'PAN',
                   _bankInfo!['panNumber'] as String? ?? 'N/A',
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddTransactionScreen(
-                          bankInfoId: widget.bankInfoId,
-                          displayName: displayName,
-                          initials: initials,
-                          panNumber: _bankInfo!['panNumber'] as String?,
-                          accountNumber: _bankInfo!['accountNumber'] as String?,
-                          ifscCode: _bankInfo!['ifscCode'] as String?,
-                        ),
-                      ),
-                    ).then((result) {
-                      // Refresh user details if transaction was added successfully
-                      if (result == true) {
-                        _fetchUserDetails();
-                      }
-                    });
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.primaryBlue),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Text(
-                    'Edit',
-                    style: TextStyle(color: AppTheme.primaryBlue),
-                  ),
-                ),
               ],
             ),
           ),
           const SizedBox(height: 24),
 
           // Future Transactions Section
-          const Text(
-            'Future Transactions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Future Transactions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddTransactionScreen(
+                        bankInfoId: widget.bankInfoId,
+                        displayName: displayName,
+                        initials: initials,
+                        bankInfo: _bankInfo,
+                      ),
+                    ),
+                  ).then((result) {
+                    // Refresh user details if transaction was added successfully
+                    if (result == true) {
+                      _fetchUserDetails();
+                    }
+                  });
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.primaryBlue),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                ),
+                child: const Text(
+                  'Add Transaction',
+                  style: TextStyle(color: AppTheme.primaryBlue),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           _futureTransactions.isEmpty

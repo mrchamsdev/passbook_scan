@@ -183,7 +183,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 8),
                 // Subtitle
                 const Text(
-                  'Enter your mobile number to get the OTP',
+                  'Enter your Email Id to get the OTP',
                   style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 40),

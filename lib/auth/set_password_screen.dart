@@ -205,7 +205,19 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                // Password Instructions
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'Password format: Naveen@1234',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF9CA3AF),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -253,6 +265,22 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     }
                     if (value.length < 8) {
                       return 'Password must be at least 8 characters';
+                    }
+                    // Check for at least one uppercase letter
+                    if (!value.contains(RegExp(r'[A-Z]'))) {
+                      return 'Password must contain at least one uppercase letter';
+                    }
+                    // Check for at least one lowercase letter
+                    if (!value.contains(RegExp(r'[a-z]'))) {
+                      return 'Password must contain at least one lowercase letter';
+                    }
+                    // Check for at least one number
+                    if (!value.contains(RegExp(r'[0-9]'))) {
+                      return 'Password must contain at least one number';
+                    }
+                    // Check for at least one special character
+                    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+                      return 'Password must contain at least one special character';
                     }
                     return null;
                   },

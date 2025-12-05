@@ -101,7 +101,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SetPasswordScreen(email: widget.email),
+                    builder: (context) =>
+                        SetPasswordScreen(email: widget.email),
                   ),
                 );
               }
@@ -269,7 +270,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                       'Need Help?',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xFF1A1A1A),
                       ),
                     ),
@@ -283,22 +284,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                         children: [
                           const TextSpan(
                             text:
-                                'If you cannot receive the code or if you changed phone number. ',
-                          ),
-                          WidgetSpan(
-                            child: GestureDetector(
-                              onTap: () {
-                                // Handle try different way
-                                Navigator.pop(context);
-                              },
-                              child: const Text(
-                                'Try a different way',
-                                style: TextStyle(
-                                  color: Color(0xFF1E3A8A),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                                'If you did not receive the verification code or if you have changed your email address, please check your email carefully and try again ',
                           ),
                         ],
                       ),

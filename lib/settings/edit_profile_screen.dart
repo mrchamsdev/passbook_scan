@@ -5,8 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import '../utils/app_theme.dart';
-import '../services/network_service.dart';
 import '../widgets/bank_loader.dart';
 import '../utils/custom_dialog.dart';
 import '../myapp.dart';
@@ -21,51 +21,122 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _phoneNumberController;
-  late TextEditingController _panController;
-  late TextEditingController _gstNoController;
-  late TextEditingController _aadharController;
-
   final ImagePicker _picker = ImagePicker();
   File? _selectedProfileImage;
   String? _currentProfileUrl;
   bool _isLoading = false;
-  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(
-      text: widget.userData['name']?.toString() ?? '',
-    );
-    _phoneNumberController = TextEditingController(
-      text: widget.userData['phoneNumber']?.toString() ?? '',
-    );
-    _panController = TextEditingController(
-      text: widget.userData['pan']?.toString() ?? '',
-    );
-    _gstNoController = TextEditingController(
-      text: widget.userData['gstNo']?.toString() ?? '',
-    );
-    _aadharController = TextEditingController(
-      text: widget.userData['aadhar']?.toString() ?? '',
-    );
     _currentProfileUrl = widget.userData['profile']?.toString();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneNumberController.dispose();
-    _panController.dispose();
-    _gstNoController.dispose();
-    _aadharController.dispose();
-    super.dispose();
+  Future<http.MultipartRequest> _buildMultipartRequest(
+    String updateUrl,
+    List<int> imageBytes,
+  ) async {
+    var request = http.MultipartRequest('PUT', Uri.parse(updateUrl));
+
+    // Add Authorization header
+    request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
+    // Note: Don't set Content-Type header manually for multipart requests
+    // The http package will set it automatically with the boundary
+
+    // Add profile image as multipart file
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'profile',
+        imageBytes,
+        filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      ),
+    );
+
+    return request;
+  }
+
+  Future<http.Response> _sendRequestWithRetry(
+    Future<http.MultipartRequest> Function() buildRequest, {
+    int maxRetries = 3,
+    Duration initialDelay = const Duration(seconds: 2),
+  }) async {
+    int attempt = 0;
+    Duration delay = initialDelay;
+
+    while (attempt < maxRetries) {
+      try {
+        attempt++;
+        print('🔄 [EDIT PROFILE] Attempt $attempt of $maxRetries...');
+
+        // Create a new request for each attempt
+        var request = await buildRequest();
+
+        // Send request with timeout
+        var streamedResponse = await request.send().timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            throw TimeoutException('Request timeout after 60 seconds');
+          },
+        );
+
+        var response = await http.Response.fromStream(streamedResponse).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException('Response timeout after 30 seconds');
+          },
+        );
+
+        print('✅ [EDIT PROFILE] Request successful on attempt $attempt');
+        return response;
+      } on SocketException catch (e) {
+        print('❌ [EDIT PROFILE] Network error on attempt $attempt: $e');
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        print('⏳ [EDIT PROFILE] Retrying in ${delay.inSeconds} seconds...');
+        await Future.delayed(delay);
+        delay = Duration(seconds: delay.inSeconds * 2); // Exponential backoff
+      } on TimeoutException catch (e) {
+        print('⏱️ [EDIT PROFILE] Timeout on attempt $attempt: $e');
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        print('⏳ [EDIT PROFILE] Retrying in ${delay.inSeconds} seconds...');
+        await Future.delayed(delay);
+        delay = Duration(seconds: delay.inSeconds * 2);
+      } catch (e) {
+        print('❌ [EDIT PROFILE] Error on attempt $attempt: $e');
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        // Check if it's a "finalized request" error - this shouldn't happen now
+        if (e.toString().contains('finalized')) {
+          print(
+            '⚠️ [EDIT PROFILE] Request finalized error - will create new request on retry',
+          );
+        }
+        print('⏳ [EDIT PROFILE] Retrying in ${delay.inSeconds} seconds...');
+        await Future.delayed(delay);
+        delay = Duration(seconds: delay.inSeconds * 2);
+      }
+    }
+
+    throw Exception('Failed after $maxRetries attempts');
   }
 
   Future<void> _updateProfileWithMultipart() async {
-    if (!_formKey.currentState!.validate()) {
+    // Check if a new image is selected
+    if (_selectedProfileImage == null) {
+      if (mounted) {
+        CustomDialog.show(
+          context: context,
+          message: 'Please select a profile image to update.',
+          type: DialogType.warning,
+          title: 'No Image Selected',
+          buttonText: 'OK',
+          barrierDismissible: true,
+        );
+      }
       return;
     }
 
@@ -82,54 +153,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           '1'; // Fallback to 1 if not found
 
       final updateUrl = '${dotenv.env['API_URL']}users/updateUser/$userId';
-      print('🔄 [EDIT PROFILE] Updating profile...');
+      print('🔄 [EDIT PROFILE] Updating profile image...');
       print('🌐 [EDIT PROFILE] API URL: $updateUrl');
 
-      var request = http.MultipartRequest('PUT', Uri.parse(updateUrl));
+      // Read image bytes once (will be reused for retries)
+      var imageBytes = await _selectedProfileImage!.readAsBytes();
+      final imageSize = imageBytes.length;
+      print(
+        '📊 [EDIT PROFILE] Image size: $imageSize bytes (${(imageSize / 1024).toStringAsFixed(2)} KB)',
+      );
 
-      // Add Authorization header
-      request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
-
-      // Add all text fields - always include all fields in form data
-      request.fields['name'] = _nameController.text.trim();
-      request.fields['phoneNumber'] = _phoneNumberController.text.trim();
-      request.fields['pan'] = _panController.text.trim();
-      request.fields['gstNo'] = _gstNoController.text.trim();
-      request.fields['aadhar'] = _aadharController.text.trim();
-
-      // Add profile image as multipart file
-      if (_selectedProfileImage != null) {
-        var imageBytes = await _selectedProfileImage!.readAsBytes();
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'profile',
-            imageBytes,
-            filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          ),
-        );
+      // Warn if image is too large (> 500KB)
+      if (imageSize > 500 * 1024) {
         print(
-          '📸 [EDIT PROFILE] Profile image added to request (${imageBytes.length} bytes)',
+          '⚠️ [EDIT PROFILE] Image is large (${(imageSize / 1024).toStringAsFixed(2)} KB). Consider using a smaller image.',
         );
-      } else {
-        // If no new image selected, send existing profile URL or empty string
-        request.fields['profile'] = _currentProfileUrl ?? '';
       }
 
-      // Log all form fields being sent
-      print('📋 [EDIT PROFILE] Form fields:');
-      request.fields.forEach((key, value) {
-        print('   $key: ${value.isEmpty ? "(empty)" : value}');
-      });
-      print('📁 [EDIT PROFILE] Files: ${request.files.length}');
-      if (request.files.isNotEmpty) {
-        request.files.forEach((file) {
-          print('   File: ${file.filename} (field: ${file.field})');
+      // Create a function that builds a new request for each retry attempt
+      Future<http.MultipartRequest> buildRequest() async {
+        var request = await _buildMultipartRequest(updateUrl, imageBytes);
+
+        // Log request details (only on first attempt or when debugging)
+        print('📋 [EDIT PROFILE] Form fields:');
+        request.fields.forEach((key, value) {
+          print('   $key: ${value.isEmpty ? "(empty)" : value}');
         });
+        print('📁 [EDIT PROFILE] Files: ${request.files.length}');
+        if (request.files.isNotEmpty) {
+          request.files.forEach((file) {
+            print('   File: ${file.filename} (field: ${file.field})');
+          });
+        }
+
+        return request;
       }
 
       print('📤 [EDIT PROFILE] Sending multipart request...');
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      var response = await _sendRequestWithRetry(buildRequest);
 
       print('📥 [EDIT PROFILE] Response status: ${response.statusCode}');
       print('📥 [EDIT PROFILE] Response body: ${response.body}');
@@ -143,7 +204,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         }
         _handleUpdateResponse([response.statusCode, responseBody]);
       } else {
-        _handleUpdateResponse([response.statusCode, jsonDecode(response.body)]);
+        dynamic responseBody;
+        try {
+          responseBody = jsonDecode(response.body);
+        } catch (e) {
+          responseBody = {'message': response.body};
+        }
+        _handleUpdateResponse([response.statusCode, responseBody]);
+      }
+    } on SocketException catch (e) {
+      print('❌ [EDIT PROFILE] Network error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        CustomDialog.show(
+          context: context,
+          message:
+              'Network connection error. Please check your internet connection and try again.',
+          type: DialogType.error,
+          title: 'Connection Error',
+          buttonText: 'OK',
+          barrierDismissible: true,
+        );
+      }
+    } on TimeoutException catch (e) {
+      print('❌ [EDIT PROFILE] Timeout error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        CustomDialog.show(
+          context: context,
+          message:
+              'Request timed out. Please try again with a better internet connection.',
+          type: DialogType.error,
+          title: 'Timeout Error',
+          buttonText: 'OK',
+          barrierDismissible: true,
+        );
       }
     } catch (e) {
       print('❌ [EDIT PROFILE] Multipart upload error: $e');
@@ -151,9 +250,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _isLoading = false;
         });
+        String errorMessage = 'Failed to update profile. ';
+        if (e.toString().contains('Connection reset')) {
+          errorMessage += 'The connection was reset. Please try again.';
+        } else if (e.toString().contains('Failed after')) {
+          errorMessage +=
+              'Multiple attempts failed. Please check your connection and try again.';
+        } else {
+          errorMessage += e.toString();
+        }
         CustomDialog.show(
           context: context,
-          message: 'Error: ${e.toString()}',
+          message: errorMessage,
           type: DialogType.error,
           title: 'Error',
           buttonText: 'OK',
@@ -230,9 +338,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 75,
       );
 
       if (image != null) {
@@ -275,9 +383,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 75,
       );
 
       if (image != null) {
@@ -383,258 +491,164 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile Image Section
-                    Center(
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: _showImageSourceDialog,
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: 120,
-                                  height: 120,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  // Profile Image Section
+                  Center(
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _showImageSourceDialog,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 150,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardBackground,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppTheme.primaryBlue,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: ClipOval(
+                                  child: _selectedProfileImage != null
+                                      ? Image.file(
+                                          _selectedProfileImage!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : _currentProfileUrl != null &&
+                                            _currentProfileUrl!.isNotEmpty
+                                      ? Image.network(
+                                          _currentProfileUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  _buildDefaultProfileIcon(),
+                                        )
+                                      : _buildDefaultProfileIcon(),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.cardBackground,
+                                    color: AppTheme.primaryBlue,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: AppTheme.primaryBlue,
+                                      color: Colors.white,
                                       width: 3,
                                     ),
                                   ),
-                                  child: ClipOval(
-                                    child: _selectedProfileImage != null
-                                        ? Image.file(
-                                            _selectedProfileImage!,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : _currentProfileUrl != null &&
-                                              _currentProfileUrl!.isNotEmpty
-                                        ? Image.network(
-                                            _currentProfileUrl!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                    _buildDefaultProfileIcon(),
-                                          )
-                                        : _buildDefaultProfileIcon(),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 20,
                                   ),
                                 ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryBlue,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 3,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        TextButton(
+                          onPressed: _showImageSourceDialog,
+                          child: const Text(
+                            'Change Photo',
+                            style: TextStyle(
+                              color: AppTheme.primaryBlue,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          TextButton(
-                            onPressed: _showImageSourceDialog,
+                        ),
+                        const SizedBox(height: 20),
+                        if (_selectedProfileImage != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: const Text(
-                              'Change Photo',
+                              'New photo selected',
                               style: TextStyle(
                                 color: AppTheme.primaryBlue,
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                    // Name Field
-                    _buildTextField(
-                      controller: _nameController,
-                      label: 'Full Name',
-                      icon: Icons.person_outline,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Phone Number Field
-                    _buildTextField(
-                      controller: _phoneNumberController,
-                      label: 'Phone Number',
-                      icon: Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your phone number';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Please enter a valid phone number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    // PAN Number Field
-                    _buildTextField(
-                      controller: _panController,
-                      label: 'PAN Number',
-                      icon: Icons.credit_card_outlined,
-                      isOptional: true,
-                      textCapitalization: TextCapitalization.characters,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // GST Number Field
-                    _buildTextField(
-                      controller: _gstNoController,
-                      label: 'GST Number',
-                      icon: Icons.description_outlined,
-                      isOptional: true,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Aadhar Number Field
-                    _buildTextField(
-                      controller: _aadharController,
-                      label: 'Aadhar Number',
-                      icon: Icons.badge_outlined,
-                      keyboardType: TextInputType.number,
-                      isOptional: true,
-                      validator: (value) {
-                        if (value != null &&
-                            value.trim().isNotEmpty &&
-                            value.trim().length != 12) {
-                          return 'Aadhar number must be 12 digits';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            // Save Button
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
                   ),
                 ],
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _updateProfileWithMultipart,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: RefreshLoader(
-                            size: 24,
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
+            ),
+          ),
+          // Save Button
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
                 ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _updateProfileWithMultipart,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: RefreshLoader(
+                          size: 24,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool isOptional = false,
-    TextInputType? keyboardType,
-    TextCapitalization textCapitalization = TextCapitalization.none,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      decoration: InputDecoration(
-        labelText: label + (isOptional ? ' (Optional)' : ''),
-        prefixIcon: Icon(icon, color: AppTheme.primaryBlue),
-        filled: true,
-        fillColor: AppTheme.cardBackground,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.errorColor),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.errorColor, width: 2),
-        ),
-      ),
-      validator: validator,
     );
   }
 

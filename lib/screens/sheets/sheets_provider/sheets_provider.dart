@@ -3,11 +3,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../services/network_service.dart';
 
 class SheetsProvider extends ChangeNotifier {
-  List<Map<String, dynamic>> _allRecords = []; // Store all fetched data
-  List<Map<String, dynamic>> _records = []; // Filtered records to display
+  List<Map<String, dynamic>> _allRecords = [];
+  List<Map<String, dynamic>> _records = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String? _currentFilterType; // 'all', 'month', 'dateRange'
+  String? _currentFilterType;
   int? _filterMonth;
   int? _filterYear;
   String? _filterStartDate;
@@ -164,11 +164,7 @@ class SheetsProvider extends ChangeNotifier {
     return null;
   }
 
-  /// Filter payment info by month
-  void fetchByMonth({
-    required int month, // 1-12
-    required int year,
-  }) {
+  void fetchByMonth({required int month, required int year}) {
     // Filter existing data by month
     _filterMonth = month;
     _filterYear = year;

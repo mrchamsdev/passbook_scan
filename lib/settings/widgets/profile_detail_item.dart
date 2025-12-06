@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../utils/app_theme.dart';
 
 class ProfileDetailItem extends StatelessWidget {
-  final IconData icon;
+  final String iconPath;
   final String label;
   final String value;
 
   const ProfileDetailItem({
     super.key,
-    required this.icon,
+    required this.iconPath,
     required this.label,
     required this.value,
   });
@@ -18,10 +19,14 @@ class ProfileDetailItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppTheme.lightBlue,
-          size: 24,
+        SvgPicture.asset(
+          iconPath,
+          // width: 24,
+          // height: 24,
+          // colorFilter: ColorFilter.mode(
+          //   AppTheme.lightBlue,
+          //   BlendMode.srcIn,
+          // ),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -52,4 +57,3 @@ class ProfileDetailItem extends StatelessWidget {
     );
   }
 }
-

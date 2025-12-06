@@ -97,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       buttonText: 'Logout',
       barrierDismissible: true,
       onButtonPressed: () {
-        Navigator.of(context).pop(); // Close dialog
+        Navigator.of(context).pop();
         MyApp.clearAuthToken();
         Navigator.pushAndRemoveUntil(
           context,
@@ -124,9 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: RefreshLoader(
-                      color: AppTheme.primaryBlue,
-                    ),
+                    child: RefreshLoader(color: AppTheme.primaryBlue),
                   )
                 : _errorMessage != null
                 ? Center(
@@ -191,7 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 32),
                         // Logout Button
                         LogoutButton(onPressed: () => _handleLogout(context)),
-                        const SizedBox(height: 20),
+                        // const SizedBox(height: 20),
                       ],
                     ),
                   ),

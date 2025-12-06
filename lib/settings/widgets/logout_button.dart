@@ -4,10 +4,7 @@ import '../../utils/app_theme.dart';
 class LogoutButton extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const LogoutButton({
-    super.key,
-    required this.onPressed,
-  });
+  const LogoutButton({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +14,7 @@ class LogoutButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.errorColor,
+          backgroundColor: AppTheme.primaryBlue,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(35),
@@ -36,4 +33,3 @@ class LogoutButton extends StatelessWidget {
     );
   }
 }
-

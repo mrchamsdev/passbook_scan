@@ -31,7 +31,7 @@ class ProfileDetailsSection extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: const Text(
-                'PROFILE DETAILS',
+                'PROFILE',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -54,33 +54,33 @@ class ProfileDetailsSection extends StatelessWidget {
                   }
                 });
               },
-              icon: const Icon(
-                Icons.edit_outlined,
-                size: 18,
-                color: AppTheme.primaryBlue,
-              ),
+
               label: const Text(
                 'Edit',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.textWhite,
                 ),
               ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: 10,
+                  vertical: 6,
                 ),
+                backgroundColor: AppTheme.lightBlue.withOpacity(0.6),
                 shape: RoundedRectangleBorder(
+                  // side: BorderSide(
+                  //   color: AppTheme.lightBlue.withOpacity(0.3),
+                  //   width: 1,
+                  // ),
                   borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: AppTheme.primaryBlue, width: 1),
                 ),
               ),
             ),
           ],
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 10),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -89,55 +89,56 @@ class ProfileDetailsSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ProfileDetailItem(
-                icon: Icons.person_outline,
+                iconPath: 'assets/images/user_name.svg',
                 label: 'Full Name',
                 value: _getValue('name'),
               ),
-              const Divider(height: 32),
+              Divider(
+                height: 32,
+                color: AppTheme.dividerColor.withOpacity(0.5),
+              ),
               ProfileDetailItem(
-                icon: Icons.email_outlined,
+                iconPath: 'assets/images/user_email.svg',
                 label: 'Email Address',
                 value: _getValue('email'),
               ),
-              const Divider(height: 32),
+              Divider(
+                height: 32,
+                color: AppTheme.dividerColor.withOpacity(0.5),
+              ),
               ProfileDetailItem(
-                icon: Icons.phone_outlined,
+                iconPath: 'assets/images/user_phone.svg',
                 label: 'Phone Number',
                 value: _getValue('phoneNumber'),
               ),
-              const Divider(height: 32),
+              Divider(
+                height: 32,
+                color: AppTheme.dividerColor.withOpacity(0.5),
+              ),
               ProfileDetailItem(
-                icon: Icons.business_outlined,
+                iconPath: 'assets/images/user_company.svg',
                 label: 'Company Name',
                 value: _getValue('companyName'),
               ),
-              const Divider(height: 32),
-              ProfileDetailItem(
-                icon: Icons.category_outlined,
-                label: 'Company Type',
-                value: _getValue('companyType'),
+              Divider(
+                height: 32,
+                color: AppTheme.dividerColor.withOpacity(0.5),
               ),
-              const Divider(height: 32),
+
               ProfileDetailItem(
-                icon: Icons.credit_card_outlined,
+                iconPath: 'assets/images/user_pan_card.svg',
                 label: 'PAN Number',
                 value: _getValue('pan'),
               ),
-              const Divider(height: 32),
+              Divider(
+                height: 32,
+                color: AppTheme.dividerColor.withOpacity(0.5),
+              ),
               ProfileDetailItem(
-                icon: Icons.description_outlined,
+                iconPath: 'assets/images/user_gst_num.svg',
                 label: 'GST Number',
                 value: _getValue('gstNo'),
               ),
-              if (userData['address'] != null &&
-                  userData['address'].toString().isNotEmpty) ...[
-                const Divider(height: 32),
-                ProfileDetailItem(
-                  icon: Icons.location_on_outlined,
-                  label: 'Address',
-                  value: _getValue('address'),
-                ),
-              ],
             ],
           ),
         ),

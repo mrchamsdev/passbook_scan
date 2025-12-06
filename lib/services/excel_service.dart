@@ -483,4 +483,182 @@ class ExcelService {
       return '₹$amount';
     }
   }
+
+  /// Generate Excel file for payments filtered by date
+  /// Columns: Payment Date, Amount, Account Number, IFSC Code, Customer Name
+  static Future<String> generatePaymentsExcel({
+    required List<Map<String, dynamic>> payments,
+    required String filterDate,
+  }) async {
+    // Create Excel file
+    final excel = Excel.createExcel();
+
+    // Delete all default sheets
+    final sheetNames = excel.sheets.keys.toList();
+    for (final sheetName in sheetNames) {
+      excel.delete(sheetName);
+    }
+
+    // Create the Payments sheet
+    final sheet = excel['Payments'];
+
+    // Define styles
+    final titleStyle = CellStyle(
+      bold: true,
+      fontSize: 18,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    final headerStyle = CellStyle(
+      bold: true,
+      fontSize: 12,
+      backgroundColorHex: ExcelColor.fromHexString('4472C4'),
+      fontColorHex: ExcelColor.fromHexString('FFFFFF'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    final dataRowStyle = CellStyle(
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Left,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    final amountStyle = CellStyle(
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Right,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    final dateStyle = CellStyle(
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    int currentRow = 0;
+
+    // Title Row
+    sheet.appendRow([
+      TextCellValue('PAYMENTS REPORT'),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+    ]);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow),
+    );
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
+        .cellStyle = titleStyle;
+    currentRow++;
+
+    // Filter Date Row
+    sheet.appendRow([
+      TextCellValue('Filter Date: $filterDate'),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+    ]);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow),
+    );
+    currentRow++;
+
+    // Empty row
+    currentRow++;
+
+    // Headers
+    sheet.appendRow([
+      TextCellValue('Payment Date'),
+      TextCellValue('Amount'),
+      TextCellValue('Account Number'),
+      TextCellValue('IFSC Code'),
+      TextCellValue('Customer Name'),
+    ]);
+    for (int col = 0; col < 5; col++) {
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow))
+          .cellStyle = headerStyle;
+    }
+    currentRow++;
+
+    // Data Rows
+    for (final payment in payments) {
+      final paymentDate = payment['paymentDate'] as String? ?? '';
+      final amountToPay = payment['amountToPay'] as String? ?? '0';
+      final bankInfo = payment['bankInfo'] as Map<String, dynamic>? ?? {};
+      final accountNumber = bankInfo['accountNumber'] as String? ?? 'N/A';
+      final ifscCode = bankInfo['ifscCode'] as String? ?? 'N/A';
+      final customerName = bankInfo['customerName'] as String? ?? 'N/A';
+
+      // Format date
+      String formattedDate = '';
+      if (paymentDate.isNotEmpty) {
+        try {
+          final date = DateTime.parse(paymentDate);
+          formattedDate = DateFormat('dd-MM-yyyy').format(date);
+        } catch (e) {
+          formattedDate = paymentDate;
+        }
+      }
+
+      // Format amount
+      String formattedAmount = _formatAmount(amountToPay);
+
+      sheet.appendRow([
+        TextCellValue(formattedDate),
+        TextCellValue(formattedAmount),
+        TextCellValue(accountNumber),
+        TextCellValue(ifscCode),
+        TextCellValue(customerName),
+      ]);
+
+      // Apply styles
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
+          .cellStyle = dateStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow))
+          .cellStyle = amountStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow))
+          .cellStyle = dataRowStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
+          .cellStyle = dataRowStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
+          .cellStyle = dataRowStyle;
+
+      currentRow++;
+    }
+
+    // Set column widths
+    sheet.setColumnWidth(0, 18.0); // Payment Date
+    sheet.setColumnWidth(1, 18.0); // Amount
+    sheet.setColumnWidth(2, 20.0); // Account Number
+    sheet.setColumnWidth(3, 18.0); // IFSC Code
+    sheet.setColumnWidth(4, 25.0); // Customer Name
+
+    // Save file
+    final directory = await getApplicationDocumentsDirectory();
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = 'Payments_${filterDate.replaceAll('-', '_')}_$timestamp.xlsx';
+    final filePath = '${directory.path}/$fileName';
+    final fileBytes = excel.encode();
+
+    if (fileBytes != null) {
+      final file = File(filePath);
+      await file.writeAsBytes(fileBytes);
+      return filePath;
+    } else {
+      throw Exception('Failed to encode Excel file');
+    }
+  }
 }

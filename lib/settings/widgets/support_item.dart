@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../utils/app_theme.dart';
 
 class SupportItem extends StatelessWidget {
-  final IconData icon;
+  final String iconPath;
   final String label;
   final VoidCallback onTap;
 
   const SupportItem({
     super.key,
-    required this.icon,
+    required this.iconPath,
     required this.label,
     required this.onTap,
   });
@@ -21,10 +22,14 @@ class SupportItem extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: AppTheme.lightBlue,
-              size: 24,
+            SvgPicture.asset(
+              iconPath,
+              // width: 24,
+              // height: 24,
+              // colorFilter: ColorFilter.mode(
+              //   AppTheme.lightBlue,
+              //   BlendMode.srcIn,
+              // ),
             ),
             const SizedBox(width: 16),
             Expanded(

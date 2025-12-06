@@ -6,11 +6,7 @@ class SupportSection extends StatelessWidget {
   final VoidCallback? onContactUs;
   final VoidCallback? onAboutUs;
 
-  const SupportSection({
-    super.key,
-    this.onContactUs,
-    this.onAboutUs,
-  });
+  const SupportSection({super.key, this.onContactUs, this.onAboutUs});
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +38,13 @@ class SupportSection extends StatelessWidget {
           child: Column(
             children: [
               SupportItem(
-                icon: Icons.headset_mic_outlined,
+                iconPath: 'assets/images/user_contact.svg',
                 label: 'Contact Us',
                 onTap: onContactUs ?? () {},
               ),
               const Divider(height: 1),
               SupportItem(
-                icon: Icons.info_outline,
+                iconPath: 'assets/images/user_about.svg',
                 label: 'About Us',
                 onTap: onAboutUs ?? () {},
               ),
@@ -59,4 +55,3 @@ class SupportSection extends StatelessWidget {
     );
   }
 }
-

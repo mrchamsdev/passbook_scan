@@ -6,6 +6,7 @@ import '../widgets/bank_loader.dart';
 import 'widgets/user_card.dart';
 import 'widgets/search_bar_widget.dart';
 import 'user_detail_screen.dart';
+import 'add_user_screen.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -165,6 +166,28 @@ class UsersScreenState extends State<UsersScreen>
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddUserScreen(),
+                      ),
+                    );
+                    // Refresh the list if user was added successfully
+                    if (result == true) {
+                      _fetchBankInfo();
+                    }
+                  },
                 ),
               ],
             ),

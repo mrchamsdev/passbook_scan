@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -16,7 +17,18 @@ class ApiService {
     try {
       print('🔄 [IMAGE UPLOAD] Starting image upload process...');
       print('📁 [IMAGE INFO] File path: ${imageFile.path}');
-      print('📁 [IMAGE INFO] File size: ${await imageFile.length()} bytes');
+      
+      // Check if file exists
+      if (!await imageFile.exists()) {
+        throw Exception('Image file does not exist at path: ${imageFile.path}');
+      }
+      
+      final fileSize = await imageFile.length();
+      print('📁 [IMAGE INFO] File size: $fileSize bytes');
+      
+      if (fileSize == 0) {
+        throw Exception('Image file is empty');
+      }
 
       var scanURL = '${dotenv.env['API_URL']}scan';
       print('🌐 [API CALL] Making POST request to: $scanURL');
@@ -38,10 +50,28 @@ class ApiService {
       );
 
       print('⏳ [UPLOAD] Sending request to server...');
-      var streamedResponse = await request.send();
+      var streamedResponse = await request.send().timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Request timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Request timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
       print('✅ [UPLOAD] Request sent, waiting for response...');
 
-      var response = await http.Response.fromStream(streamedResponse);
+      var response = await http.Response.fromStream(streamedResponse).timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Response timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Response timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
 
       print('📥 [RESPONSE] Received response from server');
       print('📊 [RESPONSE] Status Code: ${response.statusCode}');
@@ -50,32 +80,43 @@ class ApiService {
       print('📝 [RESPONSE] Body length: ${response.body.length} characters');
 
       if (response.statusCode == 200) {
-        var responseData = jsonDecode(response.body);
+        Map<String, dynamic> responseData;
+        try {
+          responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (e) {
+          print('❌ [PARSE ERROR] Failed to parse JSON response: $e');
+          print('❌ [PARSE ERROR] Response body: ${response.body}');
+          throw Exception('Invalid response format from server: $e');
+        }
+        
         print('🎉 [SUCCESS] Image upload successful!');
         print('📋 [RESPONSE DATA] Full response: $responseData');
 
         // Print individual fields if they exist
-        if (responseData is Map<String, dynamic>) {
-          print('🔍 [EXTRACTED DATA] Parsing response:');
-          print(
-            '   👤 Customer Name: ${responseData['customerName'] ?? 'Not found'}',
-          );
-          print(
-            '   🔢 Account Number: ${responseData['accountNumber'] ?? 'Not found'}',
-          );
-          print('   🏛️ IFSC Code: ${responseData['ifscCode'] ?? 'Not found'}');
-          print(
-            '   🏢 Branch Name: ${responseData['branchName'] ?? 'Not found'}',
-          );
-          print(
-            '   📍 Branch Address: ${responseData['address'] ?? 'Not found'}',
-          );
-        }
+        print('🔍 [EXTRACTED DATA] Parsing response:');
+        print(
+          '   👤 Customer Name: ${responseData['customerName'] ?? 'Not found'}',
+        );
+        print(
+          '   🔢 Account Number: ${responseData['accountNumber'] ?? 'Not found'}',
+        );
+        print('   🏛️ IFSC Code: ${responseData['ifscCode'] ?? 'Not found'}');
+        print(
+          '   🏢 Branch Name: ${responseData['branchName'] ?? 'Not found'}',
+        );
+        print(
+          '   📍 Branch Address: ${responseData['address'] ?? 'Not found'}',
+        );
 
         return responseData;
       } else {
         print('❌ [API ERROR] Status Code: ${response.statusCode}');
         print('❌ [API ERROR] Response Body: ${response.body}');
+
+        // Handle 413 specifically
+        if (response.statusCode == 413) {
+          throw Exception('Image file is too large. Please use a smaller image or reduce the image quality.');
+        }
 
         // Try to parse error message
         String errorMessage = 'API Error: ${response.statusCode}';

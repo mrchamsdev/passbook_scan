@@ -138,28 +138,6 @@ class UsersScreenState extends State<UsersScreen>
     );
   }
 
-  void _handleCreateUser() {
-    // TODO: Implement create user functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create user functionality coming soon')),
-    );
-  }
-
-  Widget _buildResponsiveCreateButton(BuildContext context) {
-    // Icon only button
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.primaryBlue,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.person_add, color: Colors.white),
-        onPressed: _handleCreateUser,
-        tooltip: 'Create New user',
-      ),
-    );
-  }
-
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -191,7 +169,6 @@ class UsersScreenState extends State<UsersScreen>
               ],
             ),
           ),
-          _buildResponsiveCreateButton(context),
         ],
       ),
     );

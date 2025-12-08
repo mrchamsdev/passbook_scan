@@ -147,14 +147,22 @@ class PaymentsViewScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Payments List
+                // Excel-like Table View
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: payments.length,
-                    itemBuilder: (context, index) {
-                      return _buildPaymentCard(payments[index], index + 1);
-                    },
+                  child: Container(
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _buildExcelTable(),
                   ),
                 ),
               ],
@@ -162,7 +170,72 @@ class PaymentsViewScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentCard(Map<String, dynamic> payment, int index) {
+  Widget _buildExcelTable() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Table Header
+            _buildTableHeader(),
+            // Table Rows
+            ...payments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final payment = entry.value;
+              return _buildTableRow(payment, index + 1);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF4472C4), // Excel-like blue header
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
+      child: Row(
+        children: [
+          _buildHeaderCell('S.No', 60),
+          _buildHeaderCell('Payment Date', 120),
+          _buildHeaderCell('Amount', 120),
+          _buildHeaderCell('Account Number', 150),
+          _buildHeaderCell('IFSC Code', 120),
+          _buildHeaderCell('Customer Name', 180),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(String text, double width) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.white.withOpacity(0.3), width: 1),
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildTableRow(Map<String, dynamic> payment, int index) {
     final paymentDate = payment['paymentDate'] as String? ?? '';
     final amountToPay = payment['amountToPay'] as String? ?? '0';
     final bankInfo = payment['bankInfo'] as Map<String, dynamic>? ?? {};
@@ -170,98 +243,61 @@ class PaymentsViewScreen extends StatelessWidget {
     final ifscCode = bankInfo['ifscCode'] as String? ?? 'N/A';
     final customerName = bankInfo['customerName'] as String? ?? 'N/A';
 
+    final isEven = index % 2 == 0;
+    final backgroundColor = isEven ? Colors.white : const Color(0xFFF2F2F2);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: backgroundColor,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '#$index',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
-                ),
-              ),
-              Text(
-                _formatAmount(amountToPay),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E7D32),
-                ),
-              ),
-            ],
+          _buildDataCell(index.toString(), 60, TextAlign.center),
+          _buildDataCell(_formatDate(paymentDate), 120, TextAlign.center),
+          _buildDataCell(
+            _formatAmount(amountToPay),
+            120,
+            TextAlign.right,
+            textColor: const Color(0xFF2E7D32),
+            isBold: true,
           ),
-          const SizedBox(height: 16),
-          // Customer Name
-          _buildInfoRow('Customer Name', customerName),
-          const SizedBox(height: 8),
-          // Payment Date
-          _buildInfoRow('Payment Date', _formatDate(paymentDate)),
-          const SizedBox(height: 8),
-          // Account Number
-          _buildInfoRow('Account Number', accountNumber),
-          const SizedBox(height: 8),
-          // IFSC Code
-          _buildInfoRow('IFSC Code', ifscCode),
+          _buildDataCell(accountNumber, 150, TextAlign.left),
+          _buildDataCell(ifscCode, 120, TextAlign.center),
+          _buildDataCell(customerName, 180, TextAlign.left),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+  Widget _buildDataCell(
+    String text,
+    double width,
+    TextAlign align, {
+    Color? textColor,
+    bool isBold = false,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+          color: textColor ?? Colors.black87,
         ),
-      ],
+        textAlign: align,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 

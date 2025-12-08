@@ -5,6 +5,7 @@ import '../../../services/network_service.dart';
 class SheetsProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _allRecords = [];
   List<Map<String, dynamic>> _records = [];
+  Map<String, List<Map<String, dynamic>>> _paymentsByDate = {};
   bool _isLoading = false;
   String? _errorMessage;
   String? _currentFilterType;
@@ -14,6 +15,7 @@ class SheetsProvider extends ChangeNotifier {
   String? _filterEndDate;
 
   List<Map<String, dynamic>> get records => _records;
+  Map<String, List<Map<String, dynamic>>> get paymentsByDate => _paymentsByDate;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -44,23 +46,61 @@ class SheetsProvider extends ChangeNotifier {
             responseData['status'] == 'error') {
           _allRecords = [];
           _records = [];
+          _paymentsByDate = {};
           _errorMessage = null;
         } else {
-          List<dynamic> dataList = [];
-          if (responseData is List) {
-            dataList = responseData;
-          } else if (responseData is Map &&
-              responseData.containsKey('payments')) {
-            dataList = responseData['payments'] as List? ?? [];
-          } else if (responseData is Map && responseData.containsKey('data')) {
-            dataList = responseData['data'] as List;
-          } else if (responseData is Map) {
-            dataList = [responseData];
-          }
+          // Check if response has paymentsByDate structure
+          if (responseData is Map && responseData.containsKey('paymentsByDate')) {
+            final paymentsByDateData = responseData['paymentsByDate'] as Map<String, dynamic>? ?? {};
+            _paymentsByDate = {};
+            _allRecords = [];
+            
+            // Convert paymentsByDate to flat list and store grouped data
+            paymentsByDateData.forEach((dateKey, paymentsList) {
+              if (paymentsList is List) {
+                final payments = paymentsList
+                    .map((json) => json as Map<String, dynamic>)
+                    .toList();
+                _paymentsByDate[dateKey] = payments;
+                _allRecords.addAll(payments);
+              }
+            });
+          } else {
+            // Handle old format
+            List<dynamic> dataList = [];
+            if (responseData is List) {
+              dataList = responseData;
+            } else if (responseData is Map &&
+                responseData.containsKey('payments')) {
+              dataList = responseData['payments'] as List? ?? [];
+            } else if (responseData is Map && responseData.containsKey('data')) {
+              dataList = responseData['data'] as List;
+            } else if (responseData is Map) {
+              dataList = [responseData];
+            }
 
-          _allRecords = dataList
-              .map((json) => json as Map<String, dynamic>)
-              .toList();
+            _allRecords = dataList
+                .map((json) => json as Map<String, dynamic>)
+                .toList();
+            
+            // Group by date for old format
+            _paymentsByDate = {};
+            for (var record in _allRecords) {
+              final paymentDate = record['paymentDate'] as String?;
+              if (paymentDate != null && paymentDate.isNotEmpty) {
+                try {
+                  final date = DateTime.parse(paymentDate);
+                  final day = date.day.toString().padLeft(2, '0');
+                  final month = date.month.toString().padLeft(2, '0');
+                  final year = date.year.toString();
+                  final dateKey = '$day-$month-$year';
+                  _paymentsByDate.putIfAbsent(dateKey, () => []).add(record);
+                } catch (e) {
+                  // Skip invalid dates
+                }
+              }
+            }
+          }
 
           // Initially show all records
           _records = List.from(_allRecords);
@@ -124,9 +164,28 @@ class SheetsProvider extends ChangeNotifier {
             recordDay.isAtSameMomentAs(endOfDay) ||
             (recordDay.isAfter(startOfDay) && recordDay.isBefore(endOfDay));
       }).toList();
+      
+      // Update paymentsByDate for filtered records
+      _paymentsByDate = {};
+      for (var record in _records) {
+        final paymentDate = record['paymentDate'] as String?;
+        if (paymentDate != null && paymentDate.isNotEmpty) {
+          try {
+            final date = DateTime.parse(paymentDate);
+            final day = date.day.toString().padLeft(2, '0');
+            final month = date.month.toString().padLeft(2, '0');
+            final year = date.year.toString();
+            final dateKey = '$day-$month-$year';
+            _paymentsByDate.putIfAbsent(dateKey, () => []).add(record);
+          } catch (e) {
+            // Skip invalid dates
+          }
+        }
+      }
     } catch (e) {
       print('Error filtering by date range: $e');
       _records = [];
+      _paymentsByDate = {};
     }
   }
 
@@ -183,6 +242,24 @@ class SheetsProvider extends ChangeNotifier {
 
       return recordDate.month == month && recordDate.year == year;
     }).toList();
+    
+    // Update paymentsByDate for filtered records
+    _paymentsByDate = {};
+    for (var record in _records) {
+      final paymentDate = record['paymentDate'] as String?;
+      if (paymentDate != null && paymentDate.isNotEmpty) {
+        try {
+          final date = DateTime.parse(paymentDate);
+          final day = date.day.toString().padLeft(2, '0');
+          final month = date.month.toString().padLeft(2, '0');
+          final year = date.year.toString();
+          final dateKey = '$day-$month-$year';
+          _paymentsByDate.putIfAbsent(dateKey, () => []).add(record);
+        } catch (e) {
+          // Skip invalid dates
+        }
+      }
+    }
   }
 
   /// Clear filter and show all records
@@ -199,6 +276,7 @@ class SheetsProvider extends ChangeNotifier {
   void clearRecords() {
     _allRecords = [];
     _records = [];
+    _paymentsByDate = {};
     _errorMessage = null;
     _currentFilterType = null;
     _filterMonth = null;

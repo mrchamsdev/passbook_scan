@@ -72,7 +72,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       setState(() {
         _selectedDate = picked;
         _paymentDateController.text = _formatDateForDisplay(picked);
-      }); 
+      });
     }
   }
 
@@ -244,32 +244,158 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Details Card
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.lightBlueAccent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    Text(
-                      widget.displayName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+              // User Details Card - Matching Image Design (Responsive)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final isSmallScreen = screenWidth < 360;
+                  final isMediumScreen = screenWidth < 400;
 
-                    _buildInfoRow('AC', widget.bankInfo?['accountNumber'] as String? ?? 'N/A'),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('IFSC', widget.bankInfo?['ifscCode'] as String? ?? 'N/A'),
-                    const SizedBox(height: 8),
-                    _buildInfoRow('PAN', widget.bankInfo?['panNumber'] as String? ?? 'N/A'),
-                  ],
-                ),
+                  // Responsive sizes
+                  final avatarSize = isSmallScreen
+                      ? 48.0
+                      : (isMediumScreen ? 52.0 : 56.0);
+                  final avatarFontSize = isSmallScreen
+                      ? 24.0
+                      : (isMediumScreen ? 26.0 : 28.0);
+                  final nameFontSize = isSmallScreen
+                      ? 20.0
+                      : (isMediumScreen ? 22.0 : 24.0);
+                  final roleFontSize = isSmallScreen ? 12.0 : 14.0;
+                  final cardPadding = isSmallScreen
+                      ? 16.0
+                      : (isMediumScreen ? 20.0 : 24.0);
+                  final horizontalSpacing = isSmallScreen
+                      ? 12.0
+                      : (isMediumScreen ? 14.0 : 16.0);
+                  final verticalSpacing = isSmallScreen ? 16.0 : 20.0;
+                  final infoItemSpacing = isSmallScreen
+                      ? 8.0
+                      : (isMediumScreen ? 12.0 : 16.0);
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF002E6E), Color(0xFF2A66B9)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: EdgeInsets.all(cardPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Section: Avatar, Name, and Role
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile Initial Avatar (White square with dark blue initial)
+                            Container(
+                              width: avatarSize,
+                              height: avatarSize,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  firstInitial,
+                                  style: TextStyle(
+                                    fontSize: avatarFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryBlue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: horizontalSpacing),
+                            // Name and Role
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.displayName,
+                                    style: TextStyle(
+                                      fontSize: nameFontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    role,
+                                    style: TextStyle(
+                                      fontSize: roleFontSize,
+                                      fontWeight: FontWeight.normal,
+                                      color: const Color(
+                                        0xFFB0B0B0,
+                                      ), // Light gray
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: verticalSpacing),
+                        // Divider
+                        Container(
+                          height: 1,
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                        SizedBox(height: verticalSpacing),
+                        // Bottom Section: PAN, AC, IFSC (Horizontal Layout - Always Row)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: _buildInfoItem(
+                                'PAN',
+                                widget.bankInfo?['panNumber'] as String? ??
+                                    'N/A',
+                                isSmallScreen: isSmallScreen,
+                                isMediumScreen: isMediumScreen,
+                                screenWidth: screenWidth,
+                              ),
+                            ),
+                            SizedBox(width: infoItemSpacing),
+                            Expanded(
+                              flex: 1,
+                              child: _buildInfoItem(
+                                'AC',
+                                widget.bankInfo?['accountNumber'] as String? ??
+                                    'N/A',
+                                isSmallScreen: isSmallScreen,
+                                isMediumScreen: isMediumScreen,
+                                screenWidth: screenWidth,
+                              ),
+                            ),
+                            SizedBox(width: infoItemSpacing),
+                            Expanded(
+                              flex: 1,
+                              child: _buildInfoItem(
+                                'IFSC',
+                                widget.bankInfo?['ifscCode'] as String? ??
+                                    'N/A',
+                                isSmallScreen: isSmallScreen,
+                                isMediumScreen: isMediumScreen,
+                                screenWidth: screenWidth,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 24),
 
@@ -395,6 +521,70 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  String get firstInitial {
+    if (widget.displayName.isEmpty) return 'U';
+    return widget.displayName.trim()[0].toUpperCase();
+  }
+
+  String get role {
+    // Check if there's a role field in bankInfo, otherwise use default
+    if (widget.bankInfo == null) return 'Dealer';
+    return widget.bankInfo!['role'] as String? ??
+        widget.bankInfo!['designation'] as String? ??
+        'Dealer';
+  }
+
+  Widget _buildInfoItem(
+    String label,
+    String value, {
+    bool isSmallScreen = false,
+    bool isMediumScreen = false,
+    double? screenWidth,
+  }) {
+    // More aggressive font size reduction for very small screens
+    final isVerySmallScreen = (screenWidth ?? 400) < 320;
+    
+    final labelFontSize = isVerySmallScreen
+        ? 9.0
+        : (isSmallScreen ? 10.0 : (isMediumScreen ? 11.0 : 12.0));
+    final valueFontSize = isVerySmallScreen
+        ? 11.0
+        : (isSmallScreen ? 12.0 : (isMediumScreen ? 13.0 : 16.0));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label :',
+          style: TextStyle(
+            fontSize: labelFontSize,
+            color: const Color(0xFFB0B0B0), // Light gray
+            fontWeight: FontWeight.normal,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: valueFontSize,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.left,
+          ),
+        ),
+      ],
     );
   }
 

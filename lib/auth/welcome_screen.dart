@@ -231,250 +231,182 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     final screenHeight = MediaQuery.of(context).size.height;
     final isTablet = screenWidth >= 600;
     final isLandscape = screenWidth > screenHeight;
+    final isSmallScreen = screenHeight < 700;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: _getResponsivePadding(context),
-                    ),
-                    child: Column(
-                      children: [
-                        if (!isLandscape || isTablet)
-                          Expanded(
-                            flex: _getIllustrationFlex(context),
-                            child: FadeTransition(
-                              opacity: _imageFadeAnimation,
-                              child: SlideTransition(
-                                position: _imageSlideAnimation,
-                                child: Center(
-                                  child: _buildIllustration(context),
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          SizedBox(
-                            height: screenHeight * 0.3,
-                            child: FadeTransition(
-                              opacity: _imageFadeAnimation,
-                              child: SlideTransition(
-                                position: _imageSlideAnimation,
-                                child: Center(
-                                  child: _buildIllustration(context),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Content Section
-                        Expanded(
-                          flex: _getContentFlex(context),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Title with animation
-                              FadeTransition(
-                                opacity: _titleFadeAnimation,
-                                child: SlideTransition(
-                                  position: _titleSlideAnimation,
-                                  child: Text(
-                                    'Welcome To the App',
-                                    style: TextStyle(
-                                      fontSize: _getResponsiveFontSize(
-                                        context,
-                                        28,
-                                      ),
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF1A1A1A),
-                                      letterSpacing: 0.5,
-                                      height: 1.2,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                              // SizedBox(
-                              //   height: _getResponsiveSpacing(context, 16),
-                              // ),
-                              // Description with animation
-                              FadeTransition(
-                                opacity: _descriptionFadeAnimation,
-                                child: SlideTransition(
-                                  position: _descriptionSlideAnimation,
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isTablet ? 32.0 : 8.0,
-                                    ),
-                                    child: Text(
-                                      "We're excited to help you pay and manage your service amount with ease.",
-                                      style: TextStyle(
-                                        fontSize: _getResponsiveFontSize(
-                                          context,
-                                          15,
-                                        ),
-                                        color: Colors.grey[600],
-                                        height: 1.6,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: _getResponsiveSpacing(context, 32),
-                              ),
-                              // Navigation Dots with animation
-                              FadeTransition(
-                                opacity: _dotsFadeAnimation,
-                                child: ScaleTransition(
-                                  scale: _dotsScaleAnimation,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _buildDot(context, true),
-                                      SizedBox(
-                                        width: _getResponsiveSpacing(
-                                          context,
-                                          8,
-                                        ),
-                                      ),
-                                      _buildDot(context, false),
-                                      SizedBox(
-                                        width: _getResponsiveSpacing(
-                                          context,
-                                          8,
-                                        ),
-                                      ),
-                                      _buildDot(context, false),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: _getResponsiveSpacing(context, 40),
-                              ),
-                              // Sign In Button with animation
-                              FadeTransition(
-                                opacity: _buttonFadeAnimation,
-                                child: SlideTransition(
-                                  position: _buttonSlideAnimation,
-                                  child: Container(
-                                    width: double.infinity,
-                                    constraints: BoxConstraints(
-                                      maxWidth: isTablet
-                                          ? 500
-                                          : double.infinity,
-                                    ),
-                                    height: _getResponsiveFontSize(context, 56),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryBlue,
-                                      borderRadius: BorderRadius.circular(35),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primaryBlue
-                                              .withOpacity(0.3),
-                                          offset: const Offset(0, 4),
-                                          blurRadius: 10,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(35),
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(35),
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const SignInScreen(),
-                                            ),
-                                          );
-                                        },
-                                        child: Center(
-                                          child: Text(
-                                            'SIGN-IN',
-                                            style: TextStyle(
-                                              fontSize: _getResponsiveFontSize(
-                                                context,
-                                                16,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: _getResponsiveSpacing(context, 16),
-                              ),
-                              // Create Account Link with animation
-                              FadeTransition(
-                                opacity: _buttonFadeAnimation,
-                                child: SlideTransition(
-                                  position: _buttonSlideAnimation,
-                                  child: TextButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const SignUpScreen(),
-                                        ),
-                                      );
-                                    },
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: _getResponsiveSpacing(
-                                          context,
-                                          24,
-                                        ),
-                                        vertical: _getResponsiveSpacing(
-                                          context,
-                                          12,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Create an account',
-                                      style: TextStyle(
-                                        fontSize: _getResponsiveFontSize(
-                                          context,
-                                          14,
-                                        ),
-                                        color: AppTheme.primaryBlue,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: _getResponsiveSpacing(context, 20),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      body: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: _getResponsivePadding(context),
+        ),
+        child: Column(
+          children: [
+            // Illustration Section
+            Expanded(
+              flex: isSmallScreen ? 2 : (isLandscape && !isTablet ? 2 : 3),
+              child: FadeTransition(
+                opacity: _imageFadeAnimation,
+                child: SlideTransition(
+                  position: _imageSlideAnimation,
+                  child: Center(child: _buildIllustration(context)),
                 ),
               ),
-            );
-          },
+            ),
+            // Content Section
+            Expanded(
+              flex: isSmallScreen ? 3 : (isLandscape && !isTablet ? 3 : 2),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Title with animation
+                  FadeTransition(
+                    opacity: _titleFadeAnimation,
+                    child: SlideTransition(
+                      position: _titleSlideAnimation,
+                      child: Text(
+                        'Welcome To the App',
+                        style: TextStyle(
+                          fontSize: _getResponsiveFontSize(context, 28),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1A1A1A),
+                          letterSpacing: 0.5,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 8 : 12),
+                  // Description with animation
+                  FadeTransition(
+                    opacity: _descriptionFadeAnimation,
+                    child: SlideTransition(
+                      position: _descriptionSlideAnimation,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 32.0 : 8.0,
+                        ),
+                        child: Text(
+                          "We're excited to help you pay and manage your service amount with ease.",
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 15),
+                            color: Colors.grey[600],
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 16 : 24),
+                  // Navigation Dots with animation
+                  FadeTransition(
+                    opacity: _dotsFadeAnimation,
+                    child: ScaleTransition(
+                      scale: _dotsScaleAnimation,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildDot(context, true),
+                          SizedBox(width: 8),
+                          _buildDot(context, false),
+                          SizedBox(width: 8),
+                          _buildDot(context, false),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 20 : 32),
+                  // Sign In Button with animation
+                  FadeTransition(
+                    opacity: _buttonFadeAnimation,
+                    child: SlideTransition(
+                      position: _buttonSlideAnimation,
+                      child: Container(
+                        width: double.infinity,
+                        constraints: BoxConstraints(
+                          maxWidth: isTablet ? 500 : double.infinity,
+                        ),
+                        height: isSmallScreen ? 50 : 56,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(35),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryBlue.withOpacity(0.3),
+                              offset: const Offset(0, 4),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(35),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(35),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignInScreen(),
+                                ),
+                              );
+                            },
+                            child: Center(
+                              child: Text(
+                                'SIGN-IN',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 16),
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 12 : 16),
+                  // Create Account Link with animation
+                  FadeTransition(
+                    opacity: _buttonFadeAnimation,
+                    child: SlideTransition(
+                      position: _buttonSlideAnimation,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SignUpScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: isSmallScreen ? 8 : 12,
+                          ),
+                        ),
+                        child: Text(
+                          'Create an account',
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 14),
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isSmallScreen ? 8 : 16),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -486,26 +418,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     final isTablet = screenWidth >= 600;
     final isSmallScreen = screenHeight < 700;
 
-    double maxHeight;
-    if (isTablet) {
-      maxHeight = screenHeight * 0.5;
-    } else if (isSmallScreen) {
-      maxHeight = screenHeight * 0.3;
-    } else {
-      maxHeight = screenHeight * 0.4;
-    }
-
     return Container(
       width: double.infinity,
-      constraints: BoxConstraints(
-        maxHeight: maxHeight,
-        maxWidth: isTablet ? 500 : double.infinity,
-      ),
+      constraints: BoxConstraints(maxWidth: isTablet ? 500 : double.infinity),
       child: SvgPicture.asset(
         'assets/images/welcome.svg',
         fit: BoxFit.contain,
         placeholderBuilder: (BuildContext context) => Container(
-          padding: EdgeInsets.all(_getResponsiveSpacing(context, 50)),
+          padding: const EdgeInsets.all(50),
           child: const RefreshLoader(color: AppTheme.primaryBlue),
         ),
       ),

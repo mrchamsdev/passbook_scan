@@ -108,7 +108,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100), // Allow future dates for future transactions
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {

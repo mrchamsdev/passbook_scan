@@ -546,7 +546,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }) {
     // More aggressive font size reduction for very small screens
     final isVerySmallScreen = (screenWidth ?? 400) < 320;
-    
+
     final labelFontSize = isVerySmallScreen
         ? 9.0
         : (isSmallScreen ? 10.0 : (isMediumScreen ? 11.0 : 12.0));

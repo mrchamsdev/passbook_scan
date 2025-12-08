@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/custom_dialog.dart';
 import '../../widgets/bank_loader.dart';
+import '../../services/api_service.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -36,30 +37,68 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Show success dialog
-      CustomDialog.show(
-        context: context,
-        message: 'Your message has been sent successfully! We will get back to you soon.',
-        type: DialogType.success,
-        title: 'Message Sent',
-        buttonText: 'OK',
-        onButtonPressed: () {
-          Navigator.of(context).pop();
-          // Clear form
-          _nameController.clear();
-          _emailController.clear();
-          _subjectController.clear();
-          _messageController.clear();
-        },
+    try {
+      // Call API to send contact message
+      final response = await ApiService.sendContactMessage(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        subject: _subjectController.text.trim(),
+        message: _messageController.text.trim(),
       );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Show success dialog
+        CustomDialog.show(
+          context: context,
+          message:
+              response['message']?.toString() ??
+              'Your message has been sent successfully! We will get back to you soon.',
+          type: DialogType.success,
+          title: 'Message Sent',
+          buttonText: 'OK',
+          barrierDismissible: false,
+          onButtonPressed: () {
+            Navigator.of(context).pop();
+            // Clear form
+            _nameController.clear();
+            _emailController.clear();
+            _subjectController.clear();
+            _messageController.clear();
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Show error dialog
+        String errorMessage =
+            'Failed to send message. Please check your internet connection and try again.';
+        if (e.toString().contains('timeout') ||
+            e.toString().contains('Timeout')) {
+          errorMessage =
+              'Request timed out. Please check your internet connection and try again.';
+        } else if (e.toString().contains('SocketException') ||
+            e.toString().contains('Network')) {
+          errorMessage =
+              'Network error. Please check your internet connection.';
+        }
+
+        CustomDialog.show(
+          context: context,
+          message: errorMessage,
+          type: DialogType.error,
+          title: 'Error',
+          buttonText: 'OK',
+          barrierDismissible: true,
+        );
+      }
     }
   }
 
@@ -146,7 +185,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           _buildContactInfoItem(
             icon: Icons.email_outlined,
             label: 'Email Address',
-            value: 'support@bankapp.com',
+            value: 'support@mrchams.com',
           ),
           const SizedBox(height: 16),
           _buildContactInfoItem(
@@ -173,11 +212,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppTheme.lightBlue,
-          size: 24,
-        ),
+        Icon(icon, color: AppTheme.lightBlue, size: 24),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -335,4 +370,3 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     );
   }
 }
-

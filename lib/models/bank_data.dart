@@ -14,13 +14,18 @@ class BankData {
   });
 
   factory BankData.fromJson(Map<String, dynamic> json) {
+    // Helper function to handle null/empty values
+    String getValue(String? key) {
+      final value = json[key]?.toString().trim() ?? '';
+      return value.isEmpty ? 'Not detected' : value;
+    }
+
     return BankData(
-      accountHolderName:
-          json['customerName']?.toString().trim() ?? 'Not detected',
-      accountNumber: json['accountNumber']?.toString().trim() ?? 'Not detected',
-      ifscCode: json['ifscCode']?.toString().trim() ?? 'Not detected',
-      branchAddress: json['address']?.toString().trim() ?? 'Not detected',
-      branchName: json['branchName']?.toString().trim() ?? 'Not detected',
+      accountHolderName: getValue('customerName'),
+      accountNumber: getValue('accountNumber'),
+      ifscCode: getValue('ifscCode'),
+      branchAddress: getValue('address'),
+      branchName: getValue('branchName'),
     );
   }
 

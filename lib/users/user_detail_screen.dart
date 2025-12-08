@@ -473,30 +473,30 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                           ),
                         ),
                         // Edit Button
-                        Container(
-                          width: editButtonSize,
-                          height: editButtonSize,
-                          decoration: BoxDecoration(
-                            color: const Color.fromARGB(
-                              255,
-                              255,
-                              255,
-                              255,
-                            ).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              Icons.edit,
-                              color: AppTheme.textWhite,
-                              size: editIconSize,
-                            ),
-                            onPressed: () {
-                              // TODO: Implement edit functionality
-                            },
-                          ),
-                        ),
+                        // Container(
+                        //   width: editButtonSize,
+                        //   height: editButtonSize,
+                        //   decoration: BoxDecoration(
+                        //     color: const Color.fromARGB(
+                        //       255,
+                        //       255,
+                        //       255,
+                        //       255,
+                        //     ).withOpacity(0.2),
+                        //     borderRadius: BorderRadius.circular(8),
+                        //   ),
+                        //   child: IconButton(
+                        //     padding: EdgeInsets.zero,
+                        //     icon: Icon(
+                        //       Icons.edit,
+                        //       color: AppTheme.textWhite,
+                        //       size: editIconSize,
+                        //     ),
+                        //     onPressed: () {
+                        //       // TODO: Implement edit functionality
+                        //     },
+                        //   ),
+                        // ),
                       ],
                     ),
                     SizedBox(height: verticalSpacing),
@@ -585,10 +585,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   side: const BorderSide(color: AppTheme.primaryBlue),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 12,
                   ),
                 ),
                 child: const Text(
@@ -793,7 +789,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             children: [
               if (paymentDate.isNotEmpty)
                 Text(
-                  'on ${_formatDateShort(paymentDate)}',
+                  '${_formatDateShort(paymentDate)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.textSecondary,

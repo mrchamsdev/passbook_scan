@@ -17,15 +17,15 @@ class ApiService {
     try {
       print('🔄 [IMAGE UPLOAD] Starting image upload process...');
       print('📁 [IMAGE INFO] File path: ${imageFile.path}');
-      
+
       // Check if file exists
       if (!await imageFile.exists()) {
         throw Exception('Image file does not exist at path: ${imageFile.path}');
       }
-      
+
       final fileSize = await imageFile.length();
       print('📁 [IMAGE INFO] File size: $fileSize bytes');
-      
+
       if (fileSize == 0) {
         throw Exception('Image file is empty');
       }
@@ -88,7 +88,7 @@ class ApiService {
           print('❌ [PARSE ERROR] Response body: ${response.body}');
           throw Exception('Invalid response format from server: $e');
         }
-        
+
         print('🎉 [SUCCESS] Image upload successful!');
         print('📋 [RESPONSE DATA] Full response: $responseData');
 
@@ -115,7 +115,9 @@ class ApiService {
 
         // Handle 413 specifically
         if (response.statusCode == 413) {
-          throw Exception('Image file is too large. Please use a smaller image or reduce the image quality.');
+          throw Exception(
+            'Image file is too large. Please use a smaller image or reduce the image quality.',
+          );
         }
 
         // Try to parse error message
@@ -150,7 +152,7 @@ class ApiService {
     required String customerName,
     required String paymentDate,
     required String amountToPay,
-    required File photo,
+    File? photo,
     String? bankName,
     String? nickname,
     String? phoneNumber,
@@ -229,22 +231,26 @@ class ApiService {
         print('   🏦 Bank Info ID: $bankInfoId');
       }
 
-      // Add photo file
-      print('📁 [PHOTO INFO] Photo file path: ${photo.path}');
-      print('📁 [PHOTO INFO] Photo file size: ${await photo.length()} bytes');
-      print('📁 [PHOTO INFO] Photo file exists: ${await photo.exists()}');
+      // Add photo file if provided
+      if (photo != null) {
+        print('📁 [PHOTO INFO] Photo file path: ${photo.path}');
+        print('📁 [PHOTO INFO] Photo file size: ${await photo.length()} bytes');
+        print('📁 [PHOTO INFO] Photo file exists: ${await photo.exists()}');
 
-      var imageBytes = await photo.readAsBytes();
-      print('📊 [PHOTO DATA] Photo bytes length: ${imageBytes.length}');
+        var imageBytes = await photo.readAsBytes();
+        print('📊 [PHOTO DATA] Photo bytes length: ${imageBytes.length}');
 
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'photo',
-          imageBytes,
-          filename: 'payment_photo.jpg',
-        ),
-      );
-      print('✅ [PHOTO] Photo file added to request');
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'photo',
+            imageBytes,
+            filename: 'payment_photo.jpg',
+          ),
+        );
+        print('✅ [PHOTO] Photo file added to request');
+      } else {
+        print('ℹ️ [PHOTO] No photo provided - proceeding without photo');
+      }
 
       print('⏳ [UPLOAD] Sending payment request to server...');
       var streamedResponse = await request.send();
@@ -347,6 +353,332 @@ class ApiService {
       throw Exception('Payment submission failed: $e');
     } finally {
       print('🏁 [PAYMENT UPLOAD] Process completed');
+    }
+  }
+
+  /// Fetch all payments grouped by date (including future transactions)
+  /// URL: /api/bank/payments/all
+  static Future<Map<String, dynamic>> getAllPayments({
+    String? startDate,
+    String? endDate,
+    int? month,
+    int? year,
+    String? paymentDate,
+  }) async {
+    try {
+      print('🔄 [GET ALL PAYMENTS] Starting fetch process...');
+
+      var paymentsURL = '${dotenv.env['API_URL']}bank/payments/all';
+
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['startDate'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['endDate'] = endDate;
+      }
+      if (month != null) {
+        queryParams['month'] = month.toString();
+        queryParams['type'] = 'month';
+      }
+      if (year != null) {
+        queryParams['year'] = year.toString();
+      }
+      if (paymentDate != null && paymentDate.isNotEmpty) {
+        queryParams['paymentDate'] = paymentDate;
+      }
+
+      // Add query parameters to URL
+      if (queryParams.isNotEmpty) {
+        final uri = Uri.parse(paymentsURL);
+        paymentsURL = uri.replace(queryParameters: queryParams).toString();
+      }
+
+      print('🌐 [API CALL] Making GET request to: $paymentsURL');
+
+      var request = http.Request('GET', Uri.parse(paymentsURL));
+
+      // Add Authorization header with bearer token
+      request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
+      request.headers['Content-Type'] = 'application/json';
+
+      print('⏳ [UPLOAD] Sending request to server...');
+      var streamedResponse = await request.send().timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Request timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Request timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+      print('✅ [UPLOAD] Request sent, waiting for response...');
+
+      var response = await http.Response.fromStream(streamedResponse).timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Response timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Response timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+
+      print('📥 [RESPONSE] Received response from server');
+      print('📊 [RESPONSE] Status Code: ${response.statusCode}');
+      print('📝 [RESPONSE] Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 404) {
+        Map<String, dynamic> responseData;
+        try {
+          responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (e) {
+          print('❌ [PARSE ERROR] Failed to parse JSON response: $e');
+          throw Exception('Invalid response format from server: $e');
+        }
+
+        print('🎉 [SUCCESS] Payments fetched successfully!');
+        print('📋 [RESPONSE DATA] Full response: $responseData');
+
+        // Handle empty response (404)
+        if (response.statusCode == 404 ||
+            (responseData.containsKey('status') &&
+                responseData['status'] == 'error')) {
+          return {
+            'status': 'success',
+            'statusCode': 200,
+            'count': 0,
+            'paymentsByDate': <String, List<dynamic>>{},
+          };
+        }
+
+        return responseData;
+      } else {
+        print('❌ [API ERROR] Status Code: ${response.statusCode}');
+        print('❌ [API ERROR] Response Body: ${response.body}');
+
+        String errorMessage = 'API Error: ${response.statusCode}';
+        try {
+          var errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          } else {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          errorMessage = response.body;
+        }
+
+        throw Exception('API Error: ${response.statusCode} - $errorMessage');
+      }
+    } catch (e) {
+      print('💥 [GET ALL PAYMENTS FAILED] Exception: $e');
+      print('🔄 [GET ALL PAYMENTS FAILED] Stack trace: ${e.toString()}');
+      throw Exception('Failed to fetch payments: $e');
+    } finally {
+      print('🏁 [GET ALL PAYMENTS] Process completed');
+    }
+  }
+
+  /// Add or update future transaction for a specific bank info
+  /// URL: /api/users/transactions/:bankInfoId/addOrUpdate
+  static Future<Map<String, dynamic>> addOrUpdateTransaction({
+    required int bankInfoId,
+    required String paymentDate,
+    required double amountToPay,
+  }) async {
+    try {
+      print('🔄 [ADD/UPDATE TRANSACTION] Starting process...');
+      print('   🏦 Bank Info ID: $bankInfoId');
+      print('   📅 Payment Date: $paymentDate');
+      print('   💰 Amount: $amountToPay');
+
+      final url =
+          '${dotenv.env['API_URL']}users/transactions/$bankInfoId/addOrUpdate';
+      print('🌐 [API CALL] Making PUT request to: $url');
+
+      final request = http.Request('PUT', Uri.parse(url));
+      request.headers['Authorization'] = 'Bearer ${MyApp.authTokenValue ?? ""}';
+      request.headers['Content-Type'] = 'application/json';
+
+      final payload = {'paymentDate': paymentDate, 'amountToPay': amountToPay};
+
+      request.body = jsonEncode(payload);
+      print('📦 [PAYLOAD] $payload');
+
+      print('⏳ [UPLOAD] Sending request to server...');
+      final streamedResponse = await request.send().timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Request timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Request timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+
+      final response = await http.Response.fromStream(streamedResponse).timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Response timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Response timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+
+      print('📥 [RESPONSE] Received response from server');
+      print('📊 [RESPONSE] Status Code: ${response.statusCode}');
+      print('📝 [RESPONSE] Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        Map<String, dynamic> responseData;
+        try {
+          responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (e) {
+          print('❌ [PARSE ERROR] Failed to parse JSON response: $e');
+          throw Exception('Invalid response format from server: $e');
+        }
+
+        print('🎉 [SUCCESS] Transaction added/updated successfully!');
+        print('📋 [RESPONSE DATA] Full response: $responseData');
+
+        return responseData;
+      } else {
+        print('❌ [API ERROR] Status Code: ${response.statusCode}');
+        print('❌ [API ERROR] Response Body: ${response.body}');
+
+        String errorMessage = 'API Error: ${response.statusCode}';
+        try {
+          var errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          } else {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          errorMessage = response.body;
+        }
+
+        throw Exception('API Error: ${response.statusCode} - $errorMessage');
+      }
+    } catch (e) {
+      print('💥 [ADD/UPDATE TRANSACTION FAILED] Exception: $e');
+      print('🔄 [ADD/UPDATE TRANSACTION FAILED] Stack trace: ${e.toString()}');
+      throw Exception('Failed to add/update transaction: $e');
+    } finally {
+      print('🏁 [ADD/UPDATE TRANSACTION] Process completed');
+    }
+  }
+
+  /// Send contact form message
+  /// URL: /api/contact/send
+  static Future<Map<String, dynamic>> sendContactMessage({
+    required String name,
+    required String email,
+    required String subject,
+    required String message,
+    String? receiverEmail,
+  }) async {
+    try {
+      print('🔄 [CONTACT] Starting contact form submission...');
+      print('   👤 Name: $name');
+      print('   📧 Email: $email');
+      print('   📝 Subject: $subject');
+
+      final url = '${dotenv.env['API_URL']}contact/send';
+      print('🌐 [API CALL] Making POST request to: $url');
+
+      final request = http.Request('POST', Uri.parse(url));
+      request.headers['Content-Type'] = 'application/json';
+
+      final payload = {
+        'name': name,
+        'email': email,
+        'subject': subject,
+        'message': message,
+        if (receiverEmail != null && receiverEmail.isNotEmpty)
+          'receiverEmail': receiverEmail,
+      };
+
+      request.body = jsonEncode(payload);
+      print('📦 [PAYLOAD] Contact form data sent');
+
+      print('⏳ [UPLOAD] Sending request to server...');
+      final streamedResponse = await request.send().timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Request timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Request timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+
+      final response = await http.Response.fromStream(streamedResponse).timeout(
+        Duration(seconds: apiTimeout),
+        onTimeout: () {
+          print('⏱️ [TIMEOUT] Response timed out after ${apiTimeout} seconds');
+          throw TimeoutException(
+            'Response timed out after ${apiTimeout} seconds',
+            Duration(seconds: apiTimeout),
+          );
+        },
+      );
+
+      print('📥 [RESPONSE] Received response from server');
+      print('📊 [RESPONSE] Status Code: ${response.statusCode}');
+      print('📝 [RESPONSE] Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        Map<String, dynamic> responseData;
+        try {
+          responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (e) {
+          print('❌ [PARSE ERROR] Failed to parse JSON response: $e');
+          throw Exception('Invalid response format from server: $e');
+        }
+
+        print('🎉 [SUCCESS] Contact message sent successfully!');
+        print('📋 [RESPONSE DATA] Full response: $responseData');
+
+        return responseData;
+      } else {
+        print('❌ [API ERROR] Status Code: ${response.statusCode}');
+        print('❌ [API ERROR] Response Body: ${response.body}');
+
+        String errorMessage = 'API Error: ${response.statusCode}';
+        try {
+          var errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          } else {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          errorMessage = response.body;
+        }
+
+        throw Exception('API Error: ${response.statusCode} - $errorMessage');
+      }
+    } catch (e) {
+      print('💥 [CONTACT FAILED] Exception: $e');
+      print('🔄 [CONTACT FAILED] Stack trace: ${e.toString()}');
+      throw Exception('Failed to send contact message: $e');
+    } finally {
+      print('🏁 [CONTACT] Process completed');
     }
   }
 }

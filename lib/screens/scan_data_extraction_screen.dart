@@ -58,6 +58,13 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
+    return '$day-$month-$year';
+  }
+
+  String _formatDateForApi(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
     return '$year-$month-$day';
   }
 
@@ -121,6 +128,24 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
       return;
     }
 
+    // Validate phone number (10 digits)
+    final phoneNumber = _phoneNumberController.text.trim();
+    if (phoneNumber.isNotEmpty &&
+        (phoneNumber.length != 10 ||
+            !RegExp(r'^[0-9]+$').hasMatch(phoneNumber))) {
+      _showSnackBar('Please enter a valid 10-digit phone number', false);
+      return;
+    }
+
+    // Validate Aadhar number (12 digits)
+    final aadharNumber = _aadharController.text.trim();
+    if (aadharNumber.isNotEmpty &&
+        (aadharNumber.length != 12 ||
+            !RegExp(r'^[0-9]+$').hasMatch(aadharNumber))) {
+      _showSnackBar('Please enter a valid 12-digit Aadhar number', false);
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -135,7 +160,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
         accountNumber: _accountNumberController.text.trim(),
         ifscCode: _ifscCodeController.text.trim(),
         customerName: _customerNameController.text.trim(),
-        paymentDate: _dateController.text.trim(),
+        paymentDate: _formatDateForApi(_selectedDate!),
         amountToPay: _amountToPayController.text.trim(),
         photo: photoFile,
         bankName: widget.bankData.branchName.isNotEmpty
@@ -283,58 +308,68 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
                     _buildTextField(
                       controller: _customerNameController,
                       label: 'Customer Name',
-                      icon: Icons.person,
+                      icon: Icons.person_outline,
+                      placeholder: 'Enter customer name here',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _accountNumberController,
                       label: 'Account Number',
-                      icon: Icons.account_balance,
+                      icon: Icons.account_balance_outlined,
+                      placeholder: 'Enter account number here',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _ifscCodeController,
                       label: 'IFSC Code',
-                      icon: Icons.code,
+                      icon: Icons.credit_card_outlined,
+                      placeholder: 'Enter IFSC code here',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildDateField(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _amountToPayController,
                       label: 'Amount to Pay',
                       icon: Icons.currency_rupee,
                       keyboardType: TextInputType.number,
+                      placeholder: 'Enter amount here',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _nicknameController,
                       label: 'Nickname (Optional)',
-                      icon: Icons.label,
+                      icon: Icons.person_outline,
                       isOptional: true,
+                      placeholder: 'Add a nickname here',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _phoneNumberController,
-                      label: 'Phone Number (Optional)',
-                      icon: Icons.phone,
+                      label: 'Phone Number',
+                      icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       isOptional: true,
+                      placeholder: 'Enter your phone number here',
+                      maxLength: 10,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _aadharController,
-                      label: 'Aadhar Number (Optional)',
-                      icon: Icons.badge,
+                      label: 'Aadhar Number',
+                      icon: Icons.badge_outlined,
                       keyboardType: TextInputType.number,
                       isOptional: true,
+                      placeholder: 'Enter your Aadhar number here',
+                      maxLength: 12,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildTextField(
                       controller: _panController,
-                      label: 'PAN Number (Optional)',
-                      icon: Icons.credit_card,
+                      label: 'PAN Number',
+                      icon: Icons.credit_card_outlined,
                       isOptional: true,
+                      placeholder: 'Enter your PAN number here',
                     ),
                     const SizedBox(height: 16),
                     _buildCommentField(),
@@ -365,7 +400,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
                     backgroundColor: AppTheme.primaryBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 0,
                   ),
@@ -380,7 +415,7 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
                           ),
                         )
                       : const Text(
-                          'Save',
+                          'Save to sheet',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -401,86 +436,157 @@ class _ScanDataExtractionScreenState extends State<ScanDataExtractionScreen> {
     required IconData icon,
     bool isOptional = false,
     TextInputType? keyboardType,
+    String? placeholder,
+    int? maxLength,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: AppTheme.primaryBlue),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          decoration: InputDecoration(
+            hintText: placeholder,
+            prefixIcon: Icon(icon, color: Colors.grey[600], size: 20),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryBlue,
+                width: 2,
+              ),
+            ),
+            counterText: '',
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
-        ),
-      ),
+      ],
     );
   }
 
   Widget _buildDateField() {
-    return TextField(
-      controller: _dateController,
-      readOnly: true,
-      onTap: _selectDate,
-      decoration: InputDecoration(
-        labelText: 'Payment Date',
-        prefixIcon: const Icon(
-          Icons.calendar_today,
-          color: AppTheme.primaryBlue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Payment Date',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        suffixIcon: const Icon(
-          Icons.arrow_drop_down,
-          color: AppTheme.primaryBlue,
+        const SizedBox(height: 8),
+        TextField(
+          controller: _dateController,
+          readOnly: true,
+          onTap: _selectDate,
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              Icons.calendar_today_outlined,
+              color: Colors.grey[600],
+              size: 20,
+            ),
+            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryBlue,
+                width: 2,
+              ),
+            ),
+          ),
         ),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
-        ),
-      ),
+      ],
     );
   }
 
   Widget _buildCommentField() {
-    return TextField(
-      controller: _commentController,
-      maxLines: 4,
-      decoration: InputDecoration(
-        labelText: 'Add Comment (Optional)',
-        prefixIcon: const Icon(Icons.comment, color: AppTheme.primaryBlue),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Add Comment (Optional)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.borderColor),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _commentController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Add any notes...',
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 60),
+              child: Icon(
+                Icons.comment_outlined,
+                color: Colors.grey[600],
+                size: 20,
+              ),
+            ),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryBlue,
+                width: 2,
+              ),
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
-        ),
-      ),
+      ],
     );
   }
 }

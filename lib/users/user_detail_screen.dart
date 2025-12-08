@@ -132,6 +132,27 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     return 'U';
   }
 
+  String get firstInitial {
+    if (_bankInfo == null) return 'U';
+    final customerName = _bankInfo!['customerName'] as String? ?? '';
+    if (customerName.isNotEmpty) {
+      return customerName.trim()[0].toUpperCase();
+    }
+    final nickname = _bankInfo!['nickname'] as String? ?? '';
+    if (nickname.isNotEmpty) {
+      return nickname[0].toUpperCase();
+    }
+    return 'U';
+  }
+
+  String get role {
+    // Check if there's a role field in bankInfo, otherwise use default
+    if (_bankInfo == null) return 'Dealer';
+    return _bankInfo!['role'] as String? ??
+        _bankInfo!['designation'] as String? ??
+        'Dealer';
+  }
+
   String _formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
@@ -141,10 +162,24 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     }
   }
 
+  String _formatDateShort(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM dd').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _getInitial(String name) {
+    if (name.isEmpty) return 'U';
+    return name.trim()[0].toUpperCase();
+  }
+
   String _formatAmount(String amount) {
     try {
       final value = double.parse(amount);
-      return '₹${NumberFormat('#,##0.00').format(value)}';
+      return '₹${NumberFormat('#,##0').format(value)}';
     } catch (e) {
       return '₹$amount';
     }
@@ -205,10 +240,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         );
 
         // Share the file
-        await Share.shareXFiles(
-          [XFile(filePath)],
-          text: 'Bank Statement for $displayName',
-        );
+        await Share.shareXFiles([
+          XFile(filePath),
+        ], text: 'Bank Statement for $displayName');
       }
     } catch (e) {
       // Close loading dialog if still open
@@ -339,41 +373,179 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // User Details Card
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.lightBlueAccent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
+          // User Details Card - Matching Image Design (Responsive)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = MediaQuery.of(context).size.width;
+              final isSmallScreen = screenWidth < 360;
+              final isMediumScreen = screenWidth < 400;
 
-                _buildInfoRow(
-                  'AC',
-                  _bankInfo!['accountNumber'] as String? ?? 'N/A',
+              // Responsive sizes
+              final avatarSize = isSmallScreen
+                  ? 48.0
+                  : (isMediumScreen ? 52.0 : 56.0);
+              final avatarFontSize = isSmallScreen
+                  ? 24.0
+                  : (isMediumScreen ? 26.0 : 28.0);
+              final nameFontSize = isSmallScreen
+                  ? 20.0
+                  : (isMediumScreen ? 22.0 : 24.0);
+              final roleFontSize = isSmallScreen ? 12.0 : 14.0;
+              final editButtonSize = isSmallScreen
+                  ? 32.0
+                  : (isMediumScreen ? 34.0 : 36.0);
+              final editIconSize = isSmallScreen ? 18.0 : 20.0;
+              final cardPadding = isSmallScreen
+                  ? 16.0
+                  : (isMediumScreen ? 20.0 : 24.0);
+              final horizontalSpacing = isSmallScreen
+                  ? 12.0
+                  : (isMediumScreen ? 14.0 : 16.0);
+              final verticalSpacing = isSmallScreen ? 16.0 : 20.0;
+              final infoItemSpacing = isSmallScreen
+                  ? 8.0
+                  : (isMediumScreen ? 12.0 : 16.0);
+
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF002E6E), Color(0xFF2A66B9)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  'IFSC',
-                  _bankInfo!['ifscCode'] as String? ?? 'N/A',
+                padding: EdgeInsets.all(cardPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Section: Avatar, Name, Role, and Edit Button
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile Initial Avatar (White square with dark blue initial)
+                        Container(
+                          width: avatarSize,
+                          height: avatarSize,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              firstInitial,
+                              style: TextStyle(
+                                fontSize: avatarFontSize,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryBlue,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: horizontalSpacing),
+                        // Name and Role
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: nameFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                role,
+                                style: TextStyle(
+                                  fontSize: roleFontSize,
+                                  fontWeight: FontWeight.normal,
+                                  color: const Color(0xFFB0B0B0), // Light gray
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Edit Button
+                        Container(
+                          width: editButtonSize,
+                          height: editButtonSize,
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(
+                              255,
+                              255,
+                              255,
+                              255,
+                            ).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              Icons.edit,
+                              color: AppTheme.textWhite,
+                              size: editIconSize,
+                            ),
+                            onPressed: () {
+                              // TODO: Implement edit functionality
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    // Divider
+                    Container(height: 1, color: Colors.white.withOpacity(0.2)),
+                    SizedBox(height: verticalSpacing),
+                    // Bottom Section: PAN, AC, IFSC (Horizontal Layout - Always Row)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildInfoItem(
+                            'PAN',
+                            _bankInfo!['panNumber'] as String? ?? 'N/A',
+                            isSmallScreen: isSmallScreen,
+                            isMediumScreen: isMediumScreen,
+                            screenWidth: screenWidth,
+                          ),
+                        ),
+                        SizedBox(width: infoItemSpacing),
+                        Expanded(
+                          flex: 1,
+                          child: _buildInfoItem(
+                            'AC',
+                            _bankInfo!['accountNumber'] as String? ?? 'N/A',
+                            isSmallScreen: isSmallScreen,
+                            isMediumScreen: isMediumScreen,
+                            screenWidth: screenWidth,
+                          ),
+                        ),
+                        SizedBox(width: infoItemSpacing),
+                        Expanded(
+                          flex: 1,
+                          child: _buildInfoItem(
+                            'IFSC',
+                            _bankInfo!['ifscCode'] as String? ?? 'N/A',
+                            isSmallScreen: isSmallScreen,
+                            isMediumScreen: isMediumScreen,
+                            screenWidth: screenWidth,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  'PAN',
-                  _bankInfo!['panNumber'] as String? ?? 'N/A',
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 24),
 
@@ -420,7 +592,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                 ),
                 child: const Text(
-                  'Add Transaction',
+                  'Add',
                   style: TextStyle(color: AppTheme.primaryBlue),
                 ),
               ),
@@ -499,20 +671,51 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildInfoItem(
+    String label,
+    String value, {
+    bool isSmallScreen = false,
+    bool isMediumScreen = false,
+    double? screenWidth,
+  }) {
+    // More aggressive font size reduction for very small screens
+    final isVerySmallScreen = (screenWidth ?? 400) < 320;
+
+    final labelFontSize = isVerySmallScreen
+        ? 9.0
+        : (isSmallScreen ? 10.0 : (isMediumScreen ? 11.0 : 12.0));
+    final valueFontSize = isVerySmallScreen
+        ? 11.0
+        : (isSmallScreen ? 12.0 : (isMediumScreen ? 13.0 : 16.0));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '$label: ',
-          style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+          '$label :',
+          style: TextStyle(
+            fontSize: labelFontSize,
+            color: const Color(0xFFB0B0B0), // Light gray
+            fontWeight: FontWeight.normal,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: valueFontSize,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.left,
           ),
         ),
       ],
@@ -526,6 +729,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     final amount = transaction['amountToPay'] as String? ?? '0';
     final paymentDate = transaction['paymentDate'] as String? ?? '';
     final entryPerson = _userData?['name'] as String? ?? '';
+    final entryPersonInitial = _getInitial(entryPerson);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -536,52 +740,79 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       ),
       child: Row(
         children: [
+          // Avatar with initial (Left Section)
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.lightBlueAccent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                entryPersonInitial,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlue,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Creator Details (Middle Section)
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Created by',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Text(
-                  _formatAmount(amount),
+                  entryPerson.isNotEmpty ? entryPerson : 'Unknown',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
                   ),
-                ),
-                const SizedBox(height: 4),
-                if (isFuture && paymentDate.isNotEmpty)
-                  Text(
-                    _formatDate(paymentDate),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                Text(
-                  '$entryPerson (Entry person name)',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (isFuture)
-            IconButton(
-              icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
-              onPressed: () {
-                // TODO: Implement transaction options
-              },
-            )
-          else if (paymentDate.isNotEmpty)
-            Text(
-              _formatDate(paymentDate),
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
+          // Date and Amount (Right Section)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (paymentDate.isNotEmpty)
+                Text(
+                  'on ${_formatDateShort(paymentDate)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.normal,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              const SizedBox(height: 2),
+              Text(
+                _formatAmount(amount),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
-            ),
+            ],
+          ),
         ],
       ),
     );

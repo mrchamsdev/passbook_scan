@@ -131,18 +131,6 @@ class SheetsScreenState extends State<SheetsScreen>
               ],
             ),
           ),
-          // Download Button
-          IconButton(
-            icon: const Icon(Icons.download, color: AppTheme.primaryBlue),
-            onPressed: _onDownloadExcel,
-            tooltip: 'Download Excel',
-          ),
-          // View Button
-          IconButton(
-            icon: const Icon(Icons.visibility, color: AppTheme.primaryBlue),
-            onPressed: _onViewPayments,
-            tooltip: 'View Payments',
-          ),
         ],
       ),
     );

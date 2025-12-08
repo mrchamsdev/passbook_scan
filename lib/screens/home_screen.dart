@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -201,9 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 98,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 75,
       );
 
       if (image != null) {
@@ -228,9 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 98,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 75,
       );
 
       if (image != null) {
@@ -270,12 +271,38 @@ class _HomeScreenState extends State<HomeScreen> {
         // Processing complete, extraction screen will be shown
         // Bottom nav will be hidden by the extraction screen shown callback
       }
+    } on TimeoutException catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        widget.onExtractionScreenHidden?.call();
+        _showError('Request timed out. Please check your internet connection and try again.');
+      }
+    } on SocketException catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        widget.onExtractionScreenHidden?.call();
+        _showError('Network error. Please check your internet connection.');
+      }
+    } on HttpException catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        widget.onExtractionScreenHidden?.call();
+        _showError('Server error: ${e.message}');
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
         // Show bottom nav again if processing failed
         widget.onExtractionScreenHidden?.call();
-        _showError('Processing Error: $e');
+        String errorMessage = 'Processing Error: $e';
+        if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (e.toString().contains('SocketException') || e.toString().contains('network')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (e.toString().contains('too large') || e.toString().contains('413')) {
+          errorMessage = 'Image file is too large. Please use a smaller image or reduce the image quality.';
+        }
+        _showError(errorMessage);
       }
     }
   }

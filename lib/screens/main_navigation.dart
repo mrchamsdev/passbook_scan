@@ -83,62 +83,54 @@ class _MainNavigationState extends State<MainNavigation> {
                   },
                   type: BottomNavigationBarType.fixed,
                   backgroundColor: Colors.white,
-                  selectedItemColor: Colors.black,
+                  selectedItemColor: AppTheme.primaryBlue,
                   unselectedItemColor: AppTheme.navUnselected,
                   selectedFontSize: 12,
                   unselectedFontSize: 12,
                   iconSize: 24,
                   elevation: 0,
-                  selectedLabelStyle: const TextStyle(
-                    color: Colors.black,
+                  showSelectedLabels: true,
+                  showUnselectedLabels: true,
+                  selectedLabelStyle: TextStyle(
+                    color: AppTheme.primaryBlue,
                     fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                   unselectedLabelStyle: TextStyle(
                     color: AppTheme.navUnselected,
                     fontWeight: FontWeight.w500,
+                    fontSize: 12,
                   ),
                   items: [
                     BottomNavigationBarItem(
-                      icon: _buildSvgIcon(
-                        'assets/images/bottom_nav_home.svg',
-                        isActive: _currentIndex == 0,
-                      ),
+                      icon: _buildSvgIcon('assets/images/bottom_nav_home.svg'),
                       activeIcon: _buildSvgIcon(
-                        'assets/images/bottom_nav_home.svg',
-                        isActive: true,
+                        'assets/images/bottom_nav_active_home.svg',
                       ),
                       label: 'Home',
                     ),
                     BottomNavigationBarItem(
                       icon: _buildSvgIcon(
                         'assets/images/bottom_nav_sheets.svg',
-                        isActive: _currentIndex == 1,
                       ),
                       activeIcon: _buildSvgIcon(
-                        'assets/images/bottom_nav_sheets.svg',
-                        isActive: true,
+                        'assets/images/bottom_nav_active_sheets.svg',
                       ),
                       label: 'Sheets',
                     ),
                     BottomNavigationBarItem(
-                      icon: _buildSvgIcon(
-                        'assets/images/bottom_nav_users.svg',
-                        isActive: _currentIndex == 2,
-                      ),
+                      icon: _buildSvgIcon('assets/images/bottom_nav_users.svg'),
                       activeIcon: _buildSvgIcon(
-                        'assets/images/bottom_nav_users.svg',
-                        isActive: true,
+                        'assets/images/bottom_nav_active_user.svg',
                       ),
                       label: 'Users',
                     ),
                     BottomNavigationBarItem(
                       icon: _buildSvgIcon(
                         'assets/images/bottom_nav_settings.svg',
-                        isActive: _currentIndex == 3,
                       ),
                       activeIcon: _buildSvgIcon(
-                        'assets/images/bottom_nav_settings.svg',
-                        isActive: true,
+                        'assets/images/bottom_nav_active_settings.svg',
                       ),
                       label: 'Settings',
                     ),
@@ -150,15 +142,12 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  Widget _buildSvgIcon(String assetPath, {required bool isActive}) {
+  Widget _buildSvgIcon(String assetPath) {
     return SvgPicture.asset(
       assetPath,
-      width: 18,
-      height: 18,
-      colorFilter: ColorFilter.mode(
-        isActive ? Colors.black : AppTheme.navUnselected,
-        BlendMode.srcIn,
-      ),
+      width: 20,
+      height: 20,
+      // fit: BoxFit.contain,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:bank_scan/myapp.dart';
@@ -272,7 +273,6 @@ class ApiService {
         try {
           var responseData = jsonDecode(response.body);
           print('📋 [RESPONSE DATA] Full response: $responseData');
-
           // Print individual fields from response
           if (responseData is Map<String, dynamic>) {
             print('🔍 [EXTRACTED DATA] Parsing response:');

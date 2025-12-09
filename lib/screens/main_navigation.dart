@@ -52,16 +52,16 @@ class _MainNavigationState extends State<MainNavigation> {
       bottomNavigationBar: _showBottomNav
           ? SafeArea(
               child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
+                color: Colors.white,
+                // decoration: BoxDecoration(
+                //   boxShadow: [
+                //     BoxShadow(
+                //       color: Colors.black.withOpacity(0.05),
+                //       blurRadius: 10,
+                //       offset: const Offset(0, -2),
+                //     ),
+                //   ],
+                // ),
                 child: BottomNavigationBar(
                   currentIndex: _currentIndex,
                   onTap: (index) {

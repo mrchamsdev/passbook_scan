@@ -129,7 +129,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
             : null,
         bankInfoId: null,
       );
-
+      Navigator.of(context).pop();
       if (mounted) {
         setState(() => _isSaving = false);
         if (success) {
@@ -141,7 +141,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
             buttonText: 'OK',
             barrierDismissible: false,
             onButtonPressed: () {
-              Navigator.of(context).pop(true); // Return success flag
+              Navigator.of(context).pop(true);
             },
           );
         } else {

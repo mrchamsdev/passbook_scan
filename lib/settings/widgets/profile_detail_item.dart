@@ -45,7 +45,7 @@ class ProfileDetailItem extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   color: AppTheme.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),

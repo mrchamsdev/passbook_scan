@@ -7,7 +7,7 @@ import '../utils/app_theme.dart';
 import '../models/bank_data.dart';
 import '../services/api_service.dart';
 import '../widgets/bank_loader.dart';
-import '../myapp.dart';
+import 'package:bank_scan/myapp.dart';
 import 'scan_data_extraction_screen.dart';
 import 'home/image_sections/welcome_header.dart';
 import 'home/image_sections/scan_document_section.dart';

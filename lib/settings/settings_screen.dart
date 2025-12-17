@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_theme.dart';
 import '../utils/custom_dialog.dart';
 import '../auth/welcome_screen.dart';
-import '../myapp.dart';
+import 'package:bank_scan/myapp.dart';
 import '../services/network_service.dart';
 import '../widgets/bank_loader.dart';
 import 'widgets/profile_header_card.dart';

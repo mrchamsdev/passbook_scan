@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../myapp.dart';
+import 'package:bank_scan/myapp.dart';
 import '../../../utils/app_theme.dart';
 import 'animated_money_icon.dart';
 

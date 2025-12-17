@@ -4,7 +4,7 @@ import 'auth/welcome_screen.dart';
 import 'screens/main_navigation.dart';
 import 'utils/app_theme.dart';
 import 'widgets/bank_loader.dart';
-import 'myapp.dart';
+import 'package:bank_scan/myapp.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

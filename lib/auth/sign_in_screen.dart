@@ -4,7 +4,7 @@ import '../widgets/bank_loader.dart';
 import 'forgot_password_screen.dart';
 import 'sign_up_screen.dart';
 import '../screens/main_navigation.dart';
-import '../myapp.dart';
+import 'package:bank_scan/myapp.dart';
 import '../services/network_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/custom_dialog.dart';

@@ -9,7 +9,7 @@ import 'dart:async';
 import '../utils/app_theme.dart';
 import '../widgets/bank_loader.dart';
 import '../utils/custom_dialog.dart';
-import '../myapp.dart';
+import 'package:bank_scan/myapp.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;

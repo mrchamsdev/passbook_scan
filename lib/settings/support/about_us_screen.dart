@@ -110,10 +110,7 @@ class AboutUsScreen extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                value: '10M+',
-                label: 'Active Users',
-              ),
+              child: _buildStatCard(value: '10M+', label: 'Active Users'),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -128,17 +125,11 @@ class AboutUsScreen extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                value: '99.9%',
-                label: 'Uptime',
-              ),
+              child: _buildStatCard(value: '99.9%', label: 'Uptime'),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildStatCard(
-                value: '4.8★',
-                label: 'App Rating',
-              ),
+              child: _buildStatCard(value: '4.8★', label: 'App Rating'),
             ),
           ],
         ),
@@ -146,10 +137,7 @@ class AboutUsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard({
-    required String value,
-    required String label,
-  }) {
+  Widget _buildStatCard({required String value, required String label}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -263,7 +251,8 @@ class AboutUsScreen extends StatelessWidget {
         _buildFeatureItem(
           icon: Icons.emoji_events_outlined,
           title: 'Award Winning App',
-          description: 'Recognized as the best Fintech App 2025 by India Banking Awards',
+          description:
+              'Recognized as the best Fintech App 2025 by India Banking Awards',
           hasBorder: true,
         ),
       ],
@@ -301,11 +290,7 @@ class AboutUsScreen extends StatelessWidget {
               color: AppTheme.lightBlueAccent,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: AppTheme.lightBlue,
-              size: 24,
-            ),
+            child: Icon(icon, color: AppTheme.lightBlue, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -345,35 +330,21 @@ class AboutUsScreen extends StatelessWidget {
           children: [
             const Text(
               'Made with ',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
-            const Icon(
-              Icons.favorite,
-              color: Colors.red,
-              size: 16,
-            ),
+            const Icon(Icons.favorite, color: Colors.red, size: 16),
             const Text(
               ' in India',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
           ],
         ),
         const SizedBox(height: 8),
         const Text(
-          'version 2.5.0- © 2025 BankApp',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
+          'version 2.5.0- © 2025 MilloraPay',
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
       ],
     );
   }
 }
-

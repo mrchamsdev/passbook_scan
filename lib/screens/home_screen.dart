@@ -191,9 +191,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _captureFromCamera() async {
     try {
-      final status = await Permission.camera.request();
+      // Check current permission status first
+      final currentStatus = await Permission.camera.status;
+      
+      // If permission is not granted, request it
+      PermissionStatus status;
+      if (currentStatus.isDenied) {
+        // Request permission - this will show the system permission dialog
+        status = await Permission.camera.request();
+      } else {
+        status = currentStatus;
+      }
+
+      // If permission is permanently denied, show dialog with Settings option
+      if (status.isPermanentlyDenied) {
+        _showPermissionDialog('Camera', showSettings: true);
+        return;
+      }
+
+      // If permission is denied (but not permanently), show informative message
+      if (status.isDenied) {
+        _showPermissionDialog('Camera', showSettings: false);
+        return;
+      }
+
+      // Permission is granted, proceed with camera
       if (!status.isGranted) {
-        _showPermissionDialog('Camera');
         return;
       }
 
@@ -307,26 +330,29 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showPermissionDialog(String permission) {
+  void _showPermissionDialog(String permission, {required bool showSettings}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Permission Required'),
         content: Text(
-          '$permission permission is required to use this feature.',
+          showSettings
+              ? '$permission permission is required to capture bank documents. Please enable it in Settings.'
+              : '$permission permission is required to capture bank documents. Please grant permission when prompted.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
+          if (showSettings)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
         ],
       ),
     );

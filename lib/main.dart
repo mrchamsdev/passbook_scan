@@ -9,7 +9,6 @@ import 'package:bank_scan/myapp.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
   try {
     await dotenv.load(fileName: ".env");
     print('✅ Environment variables loaded successfully');
@@ -27,7 +26,7 @@ class BankPassbookOCRApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bank Passbook OCR',
+      title: 'MilloraPay',
       theme: ThemeData(
         primaryColor: AppTheme.primaryBlue,
         scaffoldBackgroundColor: AppTheme.scaffoldBackground,

@@ -1,13 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Add these permissions -->
+    <!-- Required permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
     
-    <!-- For Android 13+ (API 33+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Note: READ_MEDIA_IMAGES/READ_MEDIA_VIDEO permissions removed to comply with Google Play policy.
+         The app uses Android Photo Picker for one-time image selection, which doesn't require these permissions.
+         READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE are also removed as they're deprecated for Android 13+ -->
 
     <application
         android:label="MilloraPay"

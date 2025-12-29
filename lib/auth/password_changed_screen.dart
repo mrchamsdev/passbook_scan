@@ -268,7 +268,7 @@ class _PasswordChangedScreenState extends State<PasswordChangedScreen> {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8.0),
                   child: Text(
-                    'Password format: Naveen@1234',
+                    'Password format: Jhon@1234',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textHint,

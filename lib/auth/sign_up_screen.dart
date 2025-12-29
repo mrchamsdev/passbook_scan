@@ -240,8 +240,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validatePAN(String? value) {
+    // PAN is optional, but if provided, validate format
     if (value == null || value.isEmpty) {
-      return 'Please enter PAN Number';
+      return null;
     }
     // PAN format: ABCDE1234F
     if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$').hasMatch(value.toUpperCase())) {
@@ -251,8 +252,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validateGST(String? value) {
+    // GST is optional, but if provided, validate format
     if (value == null || value.isEmpty) {
-      return 'Please enter GST Number';
+      return null;
     }
     // GST format: 15 characters
     if (value.length != 15) {
@@ -262,8 +264,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validateIFSC(String? value) {
+    // IFSC is optional, but if provided, validate format
     if (value == null || value.isEmpty) {
-      return 'Please enter IFSC Code';
+      return null;
     }
     // IFSC format: 11 characters (4 letters + 0 + 6 alphanumeric)
     if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(value.toUpperCase())) {
@@ -273,8 +276,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validateAccountNumber(String? value) {
+    // Account number is optional, but if provided, validate format
     if (value == null || value.isEmpty) {
-      return 'Please enter Bank Account Number';
+      return null;
     }
     if (value.length < 9 || value.length > 18) {
       return 'Account number must be 9-18 digits';
@@ -421,7 +425,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: AppTheme.inputDecoration(
                       'Enter your bank name here',
                     ),
-                    validator: (value) => _validateRequired(value, 'bank name'),
+                    // Bank name is optional
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 20),

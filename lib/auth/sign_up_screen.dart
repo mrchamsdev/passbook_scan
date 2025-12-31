@@ -241,7 +241,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validatePAN(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter PAN Number';
+      return null; // Optional field
     }
     // PAN format: ABCDE1234F
     if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$').hasMatch(value.toUpperCase())) {
@@ -252,7 +252,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validateGST(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter GST Number';
+      return null; // Optional field
     }
     // GST format: 15 characters
     if (value.length != 15) {
@@ -263,7 +263,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validateIFSC(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter IFSC Code';
+      return null; // Optional field
     }
     // IFSC format: 11 characters (4 letters + 0 + 6 alphanumeric)
     if (!RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(value.toUpperCase())) {
@@ -274,7 +274,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _validateAccountNumber(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter Bank Account Number';
+      return null; // Optional field
     }
     if (value.length < 9 || value.length > 18) {
       return 'Account number must be 9-18 digits';
@@ -421,7 +421,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: AppTheme.inputDecoration(
                       'Enter your bank name here',
                     ),
-                    validator: (value) => _validateRequired(value, 'bank name'),
+                    validator: (value) => null, // Optional field
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 20),

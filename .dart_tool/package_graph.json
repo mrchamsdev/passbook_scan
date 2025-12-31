@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "bank_scan",
-      "version": "1.0.0+1",
+      "version": "1.1.8+8",
       "dependencies": [
         "animated_text_kit",
         "cupertino_icons",

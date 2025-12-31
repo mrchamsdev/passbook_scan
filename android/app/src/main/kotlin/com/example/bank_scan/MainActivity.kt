@@ -1,4 +1,4 @@
-package com.example.bank_scan
+package com.mrchams.milorapay
 
 import io.flutter.embedding.android.FlutterActivity
 

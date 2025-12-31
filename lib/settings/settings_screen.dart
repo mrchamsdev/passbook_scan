@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/app_theme.dart';
 import '../utils/custom_dialog.dart';
+import '../utils/confirmation_dialog.dart';
 import '../auth/welcome_screen.dart';
 import 'package:bank_scan/myapp.dart';
 import '../services/network_service.dart';
@@ -10,6 +11,7 @@ import 'widgets/profile_header_card.dart';
 import 'widgets/profile_details_section.dart';
 import 'widgets/support_section.dart';
 import 'widgets/logout_button.dart';
+import 'widgets/delete_account_button.dart';
 import 'support/contact_us_screen.dart';
 import 'support/about_us_screen.dart';
 
@@ -24,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isDeactivating = false;
 
   @override
   void initState() {
@@ -108,6 +111,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    // Show confirmation dialog
+    final result = await ConfirmationDialog.show(
+      context: context,
+      title: 'Delete Account',
+      message:
+          'Are you sure you want to delete your account? This action cannot be undone.',
+      yesText: 'Yes, Delete',
+      noText: 'Cancel',
+      barrierDismissible: true,
+    );
+
+    if (result == true) {
+      // User confirmed deletion
+      await _deactivateAccount(context);
+    }
+  }
+
+  Future<void> _deactivateAccount(BuildContext context) async {
+    if (_isDeactivating) return;
+
+    setState(() {
+      _isDeactivating = true;
+    });
+
+    try {
+      // Get current date and time in ISO 8601 format
+      final now = DateTime.now().toUtc();
+      final deactivationDate = now.toIso8601String();
+
+      final deactivateURL = '${dotenv.env['API_URL']}users/accountStatus';
+      print('🔄 [SETTINGS] Deactivating account...');
+      print('🌐 [SETTINGS] API URL: $deactivateURL');
+
+      final requestBody = {
+        'status': 'deActive',
+        'doYouWantToDelete': 'Yes',
+        'deActivationDate': deactivationDate,
+      };
+
+      print('📤 [SETTINGS] Request Body: $requestBody');
+
+      var response = await ServiceWithDataDelete(
+        deactivateURL,
+        requestBody,
+      ).data();
+      print('📥 [SETTINGS] API Response received');
+
+      if (response is List && response.length >= 2) {
+        int statusCode = response[0];
+        dynamic responseBody = response[1];
+
+        print('✅ [SETTINGS] API Status: $statusCode');
+        print('📄 [SETTINGS] Response Body: $responseBody');
+
+        if (statusCode == 200 || statusCode == 201) {
+          // Success
+          if (mounted) {
+            CustomDialog.show(
+              context: context,
+              message: 'Your account has been successfully deactivated.',
+              type: DialogType.success,
+              title: 'Account Deactivated',
+              buttonText: 'OK',
+              barrierDismissible: false,
+              onButtonPressed: () {
+                Navigator.of(context).pop();
+                MyApp.clearAuthToken();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const WelcomeScreen(),
+                  ),
+                  (route) => false,
+                );
+              },
+            );
+          }
+        } else {
+          // Error response
+          String errorMessage =
+              'Failed to deactivate account. Please try again.';
+          if (responseBody != null && responseBody is Map) {
+            errorMessage = responseBody['message']?.toString() ?? errorMessage;
+          }
+
+          if (mounted) {
+            CustomDialog.show(
+              context: context,
+              message: errorMessage,
+              type: DialogType.error,
+              title: 'Error',
+              buttonText: 'OK',
+              barrierDismissible: true,
+              onButtonPressed: () => Navigator.of(context).pop(),
+            );
+          }
+        }
+      } else {
+        throw Exception('Invalid response format');
+      }
+    } catch (e) {
+      print('❌ [SETTINGS] Error deactivating account: $e');
+      if (mounted) {
+        CustomDialog.show(
+          context: context,
+          message:
+              'An error occurred while deactivating your account. Please try again later.',
+          type: DialogType.error,
+          title: 'Error',
+          buttonText: 'OK',
+          barrierDismissible: true,
+          onButtonPressed: () => Navigator.of(context).pop(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeactivating = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,9 +314,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         ),
                         const SizedBox(height: 32),
+                        // Delete Account Button
+                        _isDeactivating
+                            ? const SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: Center(
+                                  child: RefreshLoader(
+                                    color: AppTheme.errorColor,
+                                  ),
+                                ),
+                              )
+                            : DeleteAccountButton(
+                                onPressed: () => _handleDeleteAccount(context),
+                              ),
+                        const SizedBox(height: 16),
                         // Logout Button
                         LogoutButton(onPressed: () => _handleLogout(context)),
-                        // const SizedBox(height: 20),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
@@ -27,6 +26,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _selectedProfileImage;
   String? _currentProfileUrl;
   bool _isLoading = false;
+  bool _isCapturingCamera = false;
 
   // Text controllers for form fields
   late TextEditingController _nameController;
@@ -411,23 +411,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _captureProfileImage() async {
-    try {
-      final status = await Permission.camera.request();
-      if (!status.isGranted) {
-        if (mounted) {
-          CustomDialog.show(
-            context: context,
-            message: 'Camera permission is required to take a photo.',
-            type: DialogType.warning,
-            title: 'Permission Required',
-            buttonText: 'OK',
-            barrierDismissible: true,
-          );
-        }
-        return;
-      }
 
+  /// Capture profile image from camera
+  /// Let image_picker handle permissions automatically to avoid conflicts
+  Future<void> _captureProfileImage() async {
+    // Prevent multiple simultaneous camera calls
+    if (_isCapturingCamera) {
+      return;
+    }
+
+    try {
+      if (!mounted) return;
+      
+      _isCapturingCamera = true;
+
+      // Open camera - image_picker handles permission requests automatically
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
@@ -436,23 +434,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         imageQuality: 75,
       );
 
+      if (!mounted) return;
+
       if (image != null) {
         setState(() {
           _selectedProfileImage = File(image.path);
         });
       }
     } catch (e) {
-      print('❌ [EDIT PROFILE] Error capturing image: $e');
+      print('Error capturing profile image: $e');
       if (mounted) {
-        CustomDialog.show(
-          context: context,
-          message: 'Error capturing image: ${e.toString()}',
-          type: DialogType.error,
-          title: 'Error',
-          buttonText: 'OK',
-          barrierDismissible: true,
-        );
+        // Don't show error for permission or cancellation errors
+        final errorMsg = e.toString().toLowerCase();
+        if (!errorMsg.contains('permission') &&
+            !errorMsg.contains('camera') &&
+            !errorMsg.contains('cancel') &&
+            !errorMsg.contains('multiple_request')) {
+          CustomDialog.show(
+            context: context,
+            message: 'Failed to capture image. Please try again.',
+            type: DialogType.error,
+            title: 'Error',
+            buttonText: 'OK',
+            barrierDismissible: true,
+          );
+        }
       }
+    } finally {
+      _isCapturingCamera = false;
     }
   }
 

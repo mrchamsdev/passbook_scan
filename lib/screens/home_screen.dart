@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../utils/app_theme.dart';
 import '../models/bank_data.dart';
 import '../services/api_service.dart';
@@ -36,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSaving = false;
   bool _wasShowingExtraction = false;
   String? _userName;
+  bool _isCapturingCamera = false;
 
   @override
   void initState() {
@@ -189,16 +189,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Capture image from camera
+  /// Let image_picker handle permissions automatically to avoid conflicts
   Future<void> _captureFromCamera() async {
-    try {
-      final status = await Permission.camera.request();
-      if (!status.isGranted) {
-        _showPermissionDialog('Camera');
-        return;
-      }
+    // Prevent multiple simultaneous camera calls
+    if (_isCapturingCamera || _isProcessing) {
+      return;
+    }
 
+    try {
+      if (!mounted) return;
+      
+      _isCapturingCamera = true;
       setState(() => _isProcessing = true);
 
+      // Open camera - image_picker handles permission requests automatically
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
@@ -207,19 +212,31 @@ class _HomeScreenState extends State<HomeScreen> {
         imageQuality: 75,
       );
 
+      if (!mounted) return;
+
       if (image != null) {
-        // Process the image directly
+        // Process the captured image
         await _processImage(image);
       } else {
         setState(() => _isProcessing = false);
-        // Show bottom nav again if cancelled
         widget.onExtractionScreenHidden?.call();
       }
     } catch (e) {
+      print('Camera error: $e');
+      if (!mounted) return;
       setState(() => _isProcessing = false);
-      // Show bottom nav again on error
       widget.onExtractionScreenHidden?.call();
-      _showError('Camera Error: $e');
+      
+      // Don't show error for permission or cancellation errors
+      final errorMsg = e.toString().toLowerCase();
+      if (!errorMsg.contains('permission') &&
+          !errorMsg.contains('camera') &&
+          !errorMsg.contains('cancel') &&
+          !errorMsg.contains('multiple_request')) {
+        _showError('Failed to capture image. Please try again.');
+      }
+    } finally {
+      _isCapturingCamera = false;
     }
   }
 
@@ -305,31 +322,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _showError(errorMessage);
       }
     }
-  }
-
-  void _showPermissionDialog(String permission) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Permission Required'),
-        content: Text(
-          '$permission permission is required to use this feature.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showError(String message) {

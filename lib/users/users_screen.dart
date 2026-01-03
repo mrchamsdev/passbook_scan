@@ -40,6 +40,7 @@ class UsersScreenState extends State<UsersScreen>
 
   Future<void> _fetchBankInfo() async {
     print('🔄 [USERS TAB] Fetching bank information...');
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -51,6 +52,8 @@ class UsersScreenState extends State<UsersScreen>
       var response = await ServiceWithHeader(bankInfoURL).data();
       print('📥 [USERS TAB] API Response received');
 
+      if (!mounted) return;
+
       if (response is List && response.length >= 2) {
         int statusCode = response[0];
         dynamic responseBody = response[1];
@@ -61,6 +64,7 @@ class UsersScreenState extends State<UsersScreen>
             final bankList = responseBody['bank'] as List<dynamic>?;
             if (bankList != null) {
               print('📊 [USERS TAB] Found ${bankList.length} bank records');
+              if (!mounted) return;
               setState(() {
                 _allBanks = bankList
                     .map((item) => item as Map<String, dynamic>)
@@ -77,12 +81,14 @@ class UsersScreenState extends State<UsersScreen>
       }
 
       print('❌ [USERS TAB] Failed to load bank information');
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Failed to load bank information';
         _isLoading = false;
       });
     } catch (e) {
       print('❌ [USERS TAB] Error: $e');
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error: ${e.toString()}';
         _isLoading = false;
@@ -97,6 +103,7 @@ class UsersScreenState extends State<UsersScreen>
   }
 
   void _filterBanks() {
+    if (!mounted) return;
     final query = _searchController.text.toLowerCase().trim();
     if (query.isEmpty) {
       setState(() {

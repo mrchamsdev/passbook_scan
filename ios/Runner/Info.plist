@@ -27,11 +27,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera to capture bank documents</string>
+	<string>We need camera access to capture photos and documents for your records.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs access to save cropped images</string>
+	<string>We need access to save photos to your gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to photo library to select bank documents</string>
+	<string>We need access to your photo library to select images.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
